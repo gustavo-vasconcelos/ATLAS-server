@@ -8,7 +8,7 @@ const EventSchema = new mongoose.Schema({
     tags: [Number],
     description: String,
     classroom: String,
-    coursesIds: Array,
+    coursesIds: [Number],
     hourStart: Number,
     hourEnd: Number,
     dateStart: Date,
