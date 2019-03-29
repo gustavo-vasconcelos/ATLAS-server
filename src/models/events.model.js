@@ -1,4 +1,4 @@
-const mongoose = required("mongoose")
+const mongoose = require("../database/connection")
 
 const EventSchema = new mongoose.Schema({
     id: Number,
@@ -53,3 +53,7 @@ const EventSchema = new mongoose.Schema({
         }
     ]
 })
+
+const Event = mongoose.model("Event", EventSchema)
+
+module.exports = Event

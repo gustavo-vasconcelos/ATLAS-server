@@ -1,4 +1,4 @@
-const mongoose = require("mongoose")
+const mongoose = require("../database/connection")
 
 const UserSchema = new mongoose.Schema({
     id: Number,
@@ -37,3 +37,7 @@ const UserSchema = new mongoose.Schema({
         }
     ]
 })
+
+const User = mongoose.model("User", UserSchema)
+
+module.exports = User
