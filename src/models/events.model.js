@@ -1,6 +1,7 @@
 const mongoose = required("mongoose")
 
 const EventSchema = new mongoose.Schema({
+    id: Number,
     authorId: Number,
     name: String,
     category: String,
