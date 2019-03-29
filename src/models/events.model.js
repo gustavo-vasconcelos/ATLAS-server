@@ -17,51 +17,152 @@ const EventSchema = new mongoose.Schema({
         type: String,
         required: true
     },
-    tags: [Number],
-    description: String,
-    classroom: String,
-    coursesIds: [Number],
-    hourStart: Number,
-    hourEnd: Number,
-    dateStart: Date,
-    durationDays: Number,
-    dateEnd: Date,
-    picture: {
-        thumbnail: String,
-        poster: {
-            url: String,
-            orientation: String
-        },
-        gallery: [String]
+    tags: [
+        {
+            type: Number,
+            required: true
+        }
+    ],
+    description: {
+        type: String,
+        required: true
     },
-    paid: Boolean,
-    paymentPrice: Number,
+    classroom: {
+        type: String,
+        required: true
+    },
+    coursesIds: [
+        {
+            type: Number,
+            required: true
+        }
+    ],
+    hourStart: {
+        type: Number,
+        required: true
+    },
+    hourEnd: {
+        type: Number,
+        required: true
+    },
+    dateStart: {
+        type: Date,
+        required: true
+    },
+    durationDays: {
+        type: Number,
+        required: true
+    },
+    dateEnd: {
+        type: Date,
+        required: true
+    },
+    picture: {
+        thumbnail: {
+            type: String,
+            required: true
+        },
+        poster: {
+            url: {
+                type: String,
+                required: true
+            },
+            orientation: {
+                type: String,
+                required: true
+            }
+        },
+        gallery: [
+            {
+                type: String,
+                required: true
+            }
+        ]
+    },
+    paid: {
+        type: Boolean,
+        required: true
+    },
+    paymentPrice: {
+        type: Number,
+        required: true
+    },
     discussions: [
         {
-            id: Number,
-            authorId: Number,
-            category: String,
-            title: String,
-            content: String,
-            upvotes: Number,
-            downvotes: Number,
-            usersVoted: [Number],
-            answers: [
+            id: {
+                type: Number,
+                required: true
+            },
+            authorId: {
+                type: Number,
+                required: true
+            },
+            category: {
+                type: String,
+                required: true
+            },
+            title: {
+                type: String,
+                required: true
+            },
+            content: {
+                type: String,
+                required: true
+            },
+            upvotes: {
+                type: Number,
+                required: true
+            },
+            downvotes: {
+                type: Number,
+                required: true
+            },
+            usersVoted: [
                 {
-                    id: Number,
-                    authorId: Number,
-                    content: String,
-                    moment: String
+                    type: Number,
+                    required: true
                 }
             ],
-            moment: String
+            answers: [
+                {
+                    id: {
+                        type: Number,
+                        required: true
+                    },
+                    authorId: {
+                        type: Number,
+                        required: true
+                    },
+                    content: {
+                        type: String,
+                        required: true
+                    },
+                    moment: {
+                        type: String,
+                        required: true
+                    }
+                }
+            ],
+            moment: {
+                type: String,
+                required: true
+            }
         }
     ],
     enrollments: [
         {
-            userId: Number,
-            paid: Boolean,
-            moment: String
+            userId: {
+                type: Number,
+                required: true
+            },
+            paid: {
+                type: Boolean,
+                required: true
+            },
+            moment: {
+                type: String,
+                required: true
+            }
         }
     ]
 })
