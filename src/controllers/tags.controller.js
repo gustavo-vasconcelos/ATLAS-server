@@ -1,23 +1,33 @@
 const express = require("express")
 const Tag = require("../models/tags.model")
-const router = express.Router()
 
-router.get("/", async (req, res) => {
+async function get(req, res) {
     try {
-        const tag = await Tag.find()
-        res.send(tag)
+        const result = await Tag.find()
+        res.send(result)
     } catch (err) {
-        res.status(400).send({ error: "Could not get tags. Error: " + err })
+        res.status(400).send({ error: "Could not get tags. " + err })
     }
-})
+}
 
-router.post("/add", async (req, res) => {
+async function add(req, res) {
+    const { name } = req.body
+    const error = "Could not add tag. "
     try {
-        await Tag.create(req.body)
-        res.send()
+        if (await Tag.findOne({ name })) {
+            res.status(400).send({ error: error + "Tag #" + name + " already exists." })
+        }
+        else {
+            try {
+                await Tag.create(req.body)
+                res.send()
+            } catch (err) {
+                res.status(400).send({ error: error + err })
+            }
+        }
     } catch (err) {
-        res.status(400).send({ error: "Could not add tag. Error: " + err })
+        res.status(400).send({ error: error + err })
     }
-})
+}
 
-module.exports = app => app.use("/tags", router)
+module.exports = { get, add }
