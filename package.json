@@ -20,6 +20,6 @@
   "homepage": "https://github.com/gustavo-vasconcelos/ATLAS-server#readme",
   "dependencies": {
     "express": "^4.16.4",
-    "mongodb": "^3.2.2"
+    "mongoose": "^5.4.20"
   }
 }
