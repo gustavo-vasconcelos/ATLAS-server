@@ -1,9 +1,18 @@
 const mongoose = require("../database/connection")
 
 const CourseSchema = new mongoose.Schema({
-    id: Number,
-    name: String,
-    abbreviation: String
+    id: {
+        type: Number,
+        required: true
+    },
+    name: {
+        type: String,
+        required: true
+    },
+    abbreviation: {
+        type: String,
+        required: true
+    }
 })
 
 const Course = mongoose.model("Course", CourseSchema)

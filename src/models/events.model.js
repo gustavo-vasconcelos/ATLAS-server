@@ -1,10 +1,22 @@
 const mongoose = require("../database/connection")
 
 const EventSchema = new mongoose.Schema({
-    id: Number,
-    authorId: Number,
-    name: String,
-    category: String,
+    id: {
+        type: Number,
+        required: true
+    },
+    authorId: {
+        type: Number,
+        required: true
+    },
+    name: {
+        type: String,
+        required: true
+    },
+    category: {
+        type: String,
+        required: true
+    },
     tags: [Number],
     description: String,
     classroom: String,
