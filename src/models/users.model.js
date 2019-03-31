@@ -1,29 +1,35 @@
 const mongoose = require("../database/connection")
+const ObjectId = mongoose.Schema.Types.ObjectId
+const bcrypt = require("bcrypt")
 
 const UserSchema = new mongoose.Schema({
-    id: {
-        type: Number,
-        required: true
-    },
     profileId: {
         type: Number,
         required: true
     },
-    name: {
+    firstName: {
+        type: String,
+        required: true
+    },
+    lastName: {
         type: String,
         required: true
     },
     username: {
         type: String,
-        lowercase: true
+        lowercase: true,
+        required: true,
+        unique: true
     },
     password: {
         type: String,
-        select: false
+        select: false,
+        required: true
     },
     email: {
         type: String,
-        required: true
+        required: true,
+        unique: true
     },
     picture: {
         type: String,
@@ -33,72 +39,70 @@ const UserSchema = new mongoose.Schema({
         type: Number,
         required: true
     },
-    accountCreation: {
-        date: {
-            type: String,
-            required: true
-        },
-        hour: {
-            type: Number,
-            required: true
-        }
+    createdAt: {
+        type: Date,
+        default: Date.now()
     },
     interests: {
         tags: [
             {
-                type: Number,
+                type: ObjectId,
                 required: true
             }
         ],
         courses: [
             {
-                type: Number,
+                type: ObjectId,
                 required: true
             }
         ],
         proponents: [
             {
-                type: Number,
+                type: ObjectId,
                 required: true
             }
         ]
     },
     notifications: [
         {
-            id: {
-                type: Number,
-                required: true
-            },
             eventId: {
-                type: Number,
+                type: ObjectId,
                 required: true
             },
             matching: {
                 tags: [
                     {
-                        type: Number,
+                        type: ObjectId,
                         required: true
                     }
                 ],
                 courses: [
                     {
-                        type: Number,
+                        type: ObjectId,
                         required: true
                     }
                 ],
                 proponents: [
                     {
-                        type: Number,
+                        type: ObjectId,
                         required: true
                     }
                 ]
             },
-            moment: {
-                type: String,
-                required: true
+            createdAt: {
+                type: Date,
+                default: Date.now()
             }
         }
     ]
+})
+
+UserSchema.pre("save", async function (next) {
+    const salt = 10
+    const hash = await bcrypt.hash(this.password, salt)
+    this.password = hash
+
+    next()
 })
 
 const User = mongoose.model("User", UserSchema)

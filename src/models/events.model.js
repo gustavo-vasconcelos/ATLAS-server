@@ -1,12 +1,9 @@
 const mongoose = require("../database/connection")
+const ObjectId = mongoose.Schema.Types.ObjectId
 
 const EventSchema = new mongoose.Schema({
-    id: {
-        type: Number,
-        required: true
-    },
     authorId: {
-        type: Number,
+        type: ObjectId,
         required: true
     },
     name: {
@@ -19,8 +16,9 @@ const EventSchema = new mongoose.Schema({
     },
     tags: [
         {
-            type: Number,
-            required: true
+            type: ObjectId,
+            required: true,
+            unique: true
         }
     ],
     description: {
@@ -33,16 +31,16 @@ const EventSchema = new mongoose.Schema({
     },
     coursesIds: [
         {
-            type: Number,
+            type: ObjectId,
             required: true
         }
     ],
     hourStart: {
-        type: Number,
+        type: String,
         required: true
     },
     hourEnd: {
-        type: Number,
+        type: String,
         required: true
     },
     dateStart: {
@@ -89,12 +87,8 @@ const EventSchema = new mongoose.Schema({
     },
     discussions: [
         {
-            id: {
-                type: Number,
-                required: true
-            },
             authorId: {
-                type: Number,
+                type: ObjectId,
                 required: true
             },
             category: {
@@ -119,54 +113,56 @@ const EventSchema = new mongoose.Schema({
             },
             usersVoted: [
                 {
-                    type: Number,
+                    type: ObjectId,
                     required: true
                 }
             ],
             answers: [
                 {
-                    id: {
-                        type: Number,
-                        required: true
-                    },
                     authorId: {
-                        type: Number,
+                        type: ObjectId,
                         required: true
                     },
                     content: {
                         type: String,
                         required: true
                     },
-                    moment: {
-                        type: String,
-                        required: true
+                    createdAt: {
+                        type: Date,
+                        default: Date.now()
                     }
                 }
             ],
-            moment: {
-                type: String,
-                required: true
+            createdAt: {
+                type: Date,
+                default: Date.now()
             }
         }
     ],
     enrollments: [
         {
             userId: {
-                type: Number,
-                required: true
+                type: ObjectId,
+                required: true,
+                unique: true
             },
             paid: {
                 type: Boolean,
                 required: true
             },
-            moment: {
-                type: String,
-                required: true
+            createdAt: {
+                type: Date,
+                default: Date.now()
             }
         }
     ]
 })
 
-const Event = mongoose.model("Event", EventSchema)
+EventSchema.pre("save", function(next) {
+    this.dateStart = Date.parse(this.dateStart)
+    this.dateEnd = Date.parse(this.dateEnd)
+    next()
+})
 
+const Event = mongoose.model("Event", EventSchema)
 module.exports = Event
