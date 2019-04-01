@@ -6,7 +6,6 @@ module.exports = (http) => {
             io.emit("CHAT_MESSAGE", data)
         })
     })
-
 }
 
 
