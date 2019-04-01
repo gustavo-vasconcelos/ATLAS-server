@@ -1,7 +1,7 @@
 const mongoose = require("mongoose")
 const config = require("../config")
 
-const uri = `mongodb+srv://atlas_db:${config.database.password}@atlas-tqd0c.mongodb.net/app`
+const uri = `mongodb+srv://atlas_db:${config.database.mongo.password}@atlas-tqd0c.mongodb.net/app`
 
 mongoose.connect(uri, {
     useNewUrlParser: true,
