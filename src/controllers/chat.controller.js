@@ -1,6 +1,8 @@
 const firebase = require("../database/firebase")
 const participants = firebase.database().ref("participants/")
 const messages = firebase.database().ref("messages/")
+const axios = require("axios")
+
 
 async function addParticipant(data) {
     try {
@@ -12,6 +14,7 @@ async function addParticipant(data) {
         console.log(err)
     }
 }
+
 /*
 async function addMessage(data) {
     try {
@@ -35,9 +38,33 @@ module.exports = (http) => {
             addParticipant(data)
         })
 
-        
+
         socket.on("CHAT_MESSAGE", data => {
+
+            (async () => {
+                try {
+                    await axios.post("/courses",
+                        {
+                            name: "Vai funcionar?",
+                            abbreviation: "Sim"
+                        },
+                        {
+                            proxy: {
+                                host: "localhost",
+                                port: 3000
+                            }
+                        }
+                    )
+                } catch (err) {
+                    console.log(err)
+                }
+            })()
+
             io.emit("CHAT_MESSAGE", data)
+        })
+
+        socket.on("DISCONNECTION", data => {
+
         })
     })
 }
