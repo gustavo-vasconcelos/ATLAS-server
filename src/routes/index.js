@@ -13,4 +13,5 @@ module.exports = app => {
    require("./courses.route")(app)
    require("./events.route")(app)
    require("./chat.route")(app)
+   require("./auth.route")(app)
 }	
