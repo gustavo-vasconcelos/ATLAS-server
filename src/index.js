@@ -4,7 +4,7 @@ const app = express()
 const http = require("http").Server(app)
 const cors = require("cors")
 
-const port = process.env.PORT
+const port = process.env.PORT || 3000
 
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
