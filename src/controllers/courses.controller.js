@@ -17,6 +17,21 @@ async function get(req, res) {
     }
 }
 
+async function getById(req, res) {
+    const _id = req.params.id
+    const error = "Could not get course. "
+    try {
+        const response = await Course.findOne({ _id })
+        if (response) {
+            res.send(response)
+        } else {
+            res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+        }
+    } catch (err) {
+        res.status(400).send({ error: error + err })
+    }
+}
+
 async function edit(req, res) {
     const _id = req.params.id
     const error = "Could not edit course. "
@@ -47,4 +62,4 @@ async function remove(req, res) {
     }
 }
 
-module.exports = { get, add, edit, remove }
+module.exports = { add, get, getById, edit, remove }
