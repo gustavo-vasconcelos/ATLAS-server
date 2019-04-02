@@ -9,8 +9,8 @@ const port = process.env.PORT
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
-//.use(cors())
-
+//app.use(cors())
+/*
 const permittedLinker = ["http://localhost:8080", "https://atlas-vue.herokuapp.com/", "0.0.0.0/0"]
 
 app.use(function (req, res, next) {
@@ -29,7 +29,7 @@ app.use(function (req, res, next) {
         next()
     }
 })
-
+*/
 // imports all controllers
 require("./routes/index")(app)
 
