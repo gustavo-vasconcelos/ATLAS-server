@@ -9,9 +9,15 @@ const port = process.env.PORT
 app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
+<<<<<<< HEAD
 //app.use(cors())
 /*
 const permittedLinker = ["http://localhost:8080", "https://atlas-vue.herokuapp.com/", "0.0.0.0/0"]
+=======
+app.use(cors())
+
+const permittedLinker = ["http://localhost:8080", "https://atlas-vue.herokuapp.com/"]
+>>>>>>> ff3444db7f59a885546bd4bc0fd6d1a31faa4733
 
 app.use(function (req, res, next) {
     let i = 0, notFound = 1, referer = req.get("Referer")
