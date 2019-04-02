@@ -11,7 +11,7 @@ app.use(bodyParser.urlencoded({ extended: false }))
 
 //.use(cors())
 
-const permittedLinker = ["http://localhost:8080", "https://atlas-vue.herokuapp.com/"]
+const permittedLinker = ["http://localhost:8080", "https://atlas-vue.herokuapp.com/", "0.0.0.0/0"]
 
 app.use(function (req, res, next) {
     let i = 0, notFound = 1, referer = req.get("Referer")
