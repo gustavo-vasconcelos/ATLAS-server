@@ -10,8 +10,8 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
 app.use(cors())
-/*
-const permittedLinker = ["http://localhost:8080", "https://atlas-vue.herokuapp.com/", "0.0.0.0/0"]
+
+const permittedLinker = ["http://localhost:8080", "https://atlas-vue.herokuapp.com/"]
 
 app.use(function (req, res, next) {
     let i = 0, notFound = 1, referer = req.get("Referer")
@@ -24,12 +24,13 @@ app.use(function (req, res, next) {
     }
     
     if(notFound) {
-        res.send("Unauthorized")
+        res.status(403)
     } else {
         next()
     }
 })
-*/
+
+
 // imports all controllers
 require("./routes/index")(app)
 
