@@ -1,4 +1,4 @@
-const mongoose = require("../database/connection")
+const mongoose = require("../../database/connection")
 
 const ChatSchema = new mongoose.Schema({
     author: {

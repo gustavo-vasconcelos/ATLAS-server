@@ -32,9 +32,9 @@ app.use(function (req, res, next) {
 */
 
 // imports all controllers
-require("./routes/index")(app)
+require("./app/routes/index")(app)
 
-require("./controllers/chat/index.controller")(http)
+require("./app/controllers/chat/index.controller")(http)
 
 http.listen(port, () => {
     console.log("Listening")

@@ -1,4 +1,4 @@
-const mongoose = require("../database/connection")
+const mongoose = require("../../database/connection")
 const ObjectId = mongoose.Schema.Types.ObjectId
 const bcrypt = require("bcrypt")
 
