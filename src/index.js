@@ -9,9 +9,7 @@ app.use(bodyParser.urlencoded({ extended: false }))
 // imports all controllers
 require("./routes/index")(app)
 
-require("./controllers/chat.controller")(http)
-
-app.use("/", express.static(__dirname + "/public"))
+require("./controllers/chat/index.controller")(http)
 
 http.listen(3000, () => {
     console.log("Listening")
