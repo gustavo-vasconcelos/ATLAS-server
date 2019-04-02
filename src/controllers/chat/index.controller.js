@@ -5,26 +5,14 @@ module.exports = (http) => {
     io.on("connection", function (socket) {
         console.log("A user connected: " + socket.id)
 
-        socket.on("CONNECTION", data => {
-        })
-
-
         socket.on("CHAT_MESSAGE", message => {
-            //const { author, type, data } = message
-            
             (async () => {
                 try {
-                    await axios.post("/chat",
+                    await axios.post("https://atlas-server-carlosguedespinto.c9users.io/chat",
                         {
                             author: message.author,
                             type: message.type,
                             data: message.data
-                        },
-                        {
-                            proxy: {
-                                host: "localhost",
-                                port: 3000
-                            }
                         }
                     )
                 } catch (err) {

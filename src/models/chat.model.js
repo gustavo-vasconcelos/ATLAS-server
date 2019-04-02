@@ -3,7 +3,7 @@ const mongoose = require("../database/connection")
 const ChatSchema = new mongoose.Schema({
     author: {
         //type: mongoose.Schema.Types.ObjectId,
-        type: Number,
+        type: String,
         required: true
     },
     type: {
