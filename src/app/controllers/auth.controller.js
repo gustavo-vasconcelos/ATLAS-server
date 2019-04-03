@@ -16,12 +16,12 @@ function generateToken(userId, userProfileId) {
 async function signUp(req, res) {
     try {
         const user = await User.create(req.body)
-        res.send({
+        return res.send({
             user,
             token: generateToken(user.id, user.profileId)
         })
     } catch (err) {
-        res.status(400).send({ error: "Could not sign up. " + err })
+        return res.status(400).send({ error: "Could not sign up. " + err })
     }
 }
 
@@ -75,7 +75,7 @@ async function forgotPassword(req, res) {
                 }
             }
         })
-        res.send()
+        return res.send()
     } catch (err) {
         return res.status(400).send({ error: err })
     }

@@ -3,17 +3,17 @@ const User = require("../models/users.model")
 async function add(req, res) {
     try {
         await User.create(req.body)
-        res.send()
+        return res.send()
     } catch (err) {
-        res.status(400).send({ error: "Could not add user. " + err })
+        return res.status(400).send({ error: "Could not add user. " + err })
     }
 }
 
 async function get(req, res) {
     try {
-        res.send(await User.find())
+        return res.send(await User.find())
     } catch (err) {
-        res.status(400).send({ error: "Could not get users. " + err })
+        return res.status(400).send({ error: "Could not get users. " + err })
     }
 }
 
@@ -23,12 +23,12 @@ async function getById(req, res) {
     try {
         const response = await User.findOne({ _id })
         if (response) {
-            res.send(response)
+            return res.send(response)
         } else {
-            res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
         }
     } catch (err) {
-        res.status(400).send({ error: error + err })
+        return res.status(400).send({ error: error + err })
     }
 }
 
@@ -38,12 +38,12 @@ async function edit(req, res) {
     try {
         if (await User.findOne({ _id })) {
             await User.findByIdAndUpdate(_id, req.body)
-            res.send()
+            return res.send()
         } else {
-            res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
         }
     } catch (err) {
-        res.status(400).send({ error: error + err })
+        return res.status(400).send({ error: error + err })
     }
 }
 
@@ -53,12 +53,12 @@ async function remove(req, res) {
     try {
         if (await User.findOne({ _id })) {
             await User.findByIdAndDelete(_id)
-            res.send()
+            return res.send()
         } else {
-            res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
         }
     } catch (err) {
-        res.status(400).send({ error: error + err })
+        return res.status(400).send({ error: error + err })
     }
 }
 

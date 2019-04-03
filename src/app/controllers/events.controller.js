@@ -3,17 +3,17 @@ const EventCollection = require("../models/events.model")
 async function add(req, res) {
     try {
         await EventCollection.create(req.body)
-        res.send()
+        return res.send()
     } catch (err) {
-        res.status(400).send({ error: "Could not add event. " + err })
+        return res.status(400).send({ error: "Could not add event. " + err })
     }
 }
 
 async function get(req, res) {
     try {
-        res.send(await EventCollection.find())
+        return res.send(await EventCollection.find())
     } catch (err) {
-        res.status(400).send({ error: "Could not get tags. " + err })
+        return res.status(400).send({ error: "Could not get tags. " + err })
     }
 }
 
@@ -23,12 +23,12 @@ async function getById(req, res) {
     try {
         const response = await EventCollection.findOne({ _id })
         if (response) {
-            res.send(response)
+            return res.send(response)
         } else {
-            res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
         }
     } catch (err) {
-        res.status(400).send({ error: error + err })
+        return res.status(400).send({ error: error + err })
     }
 }
 
@@ -38,12 +38,12 @@ async function edit(req, res) {
     try {
         if (await EventCollection.findOne({ _id })) {
             await EventCollection.findByIdAndUpdate(_id, req.body)
-            res.send()
+            return res.send()
         } else {
-            res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
         }
     } catch (err) {
-        res.status(400).send({ error: error + err })
+        return res.status(400).send({ error: error + err })
     }
 }
 
@@ -53,12 +53,12 @@ async function remove(req, res) {
     try {
         if (await EventCollection.findOne({ _id })) {
             await EventCollection.findByIdAndDelete(_id)
-            res.send()
+            return res.send()
         } else {
-            res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
         }
     } catch (err) {
-        res.status(400).send({ error: error + err })
+        return res.status(400).send({ error: error + err })
     }
 }
 
