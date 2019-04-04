@@ -4,7 +4,7 @@ const controller = require("../controllers/courses.controller")
 const auth = require("../middlewares/auth.middleware")
 const adminClearance = require("../middlewares/adminClearance.middleware")
 
-router.get("/", auth, controller.get)
+router.get("/", controller.get)
 router.get("/:id", auth, controller.getById)
 router.post("/", auth, adminClearance, controller.add)
 router.put("/:id", auth, adminClearance, controller.edit)

@@ -8,7 +8,7 @@ module.exports = (http) => {
         socket.on("CHAT_MESSAGE", message => {
             (async () => {
                 try {
-                    await axios.post("https://atlas-server-carlosguedespinto.c9users.io/chat",
+                    await axios.post("https://localhost/chat",
                         {
                             author: message.author,
                             type: message.type,
