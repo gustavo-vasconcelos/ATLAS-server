@@ -8,3 +8,5 @@ router.post("/forgot-password", controller.forgotPassword)
 router.post("/reset-password", controller.resetPassword)
 
 module.exports = app => app.use("/auth", router)
+
+//E e assim que se programa. Mais nada
