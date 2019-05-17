@@ -17,8 +17,7 @@ const EventSchema = new mongoose.Schema({
     tags: [
         {
             type: ObjectId,
-            required: true,
-            unique: true
+            required: true
         }
     ],
     description: {
@@ -143,8 +142,7 @@ const EventSchema = new mongoose.Schema({
         {
             userId: {
                 type: ObjectId,
-                required: true,
-                unique: true
+                required: true
             },
             paid: {
                 type: Boolean,
