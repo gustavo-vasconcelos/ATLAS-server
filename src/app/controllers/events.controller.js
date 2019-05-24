@@ -1,5 +1,8 @@
 const EventCollection = require("../models/events.model")
 const moment = require("moment")
+const axios = require("axios")
+const config = require("../../config")
+const UserCollection = require("../models/users.model")
 
 async function add(req, res) {
     const { tags, enrollments } = req.body
@@ -95,18 +98,21 @@ async function remove(req, res) {
     const _id = req.params.id
     const error = "Could not remove event. "
     try {
+        await EventCollection.findByIdAndDelete(_id)
+        return res.send()
+        /*
         if (await EventCollection.findOne({ _id })) {
             await EventCollection.findByIdAndDelete(_id)
             return res.send()
         } else {
             return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
-        }
+        }*/
     } catch (err) {
         return res.status(400).send({ error: error + err })
     }
 }
 
-async function getCreatedByAuthorId(req, res) {
+async function getByAuthorId(req, res) {
     const authorId = req.params.id
     
     try {
@@ -117,16 +123,37 @@ async function getCreatedByAuthorId(req, res) {
    
 }
 
-async function getEnrollmentsByAuthorId(req, res) {
-    const userId = req.params.id
+const middlewares = {
+    async getUserById(req, res, next) {
+        const userId = req.params.id
 
-    try {
-        return res.send(await EventCollection.find({
-            "enrollments.userId": userId 
-        }))
-    } catch (err) {
-        return res.status(400).send({ error: `Could not get enrolled events of user '${userId}': ${err}` })
+        try {
+            
+            
+            req.events = events
+            return next()
+        } catch (err) {
+            return res.status(400).send({ error: `Could not get enrolled events of user '${userId}': ${err}` })
+        }
     }
 }
 
-module.exports = { add, get, getById, getByDate, edit, remove, getCreatedByAuthorId, getEnrollmentsByAuthorId }
+async function addEventAuthorUsername(req, res) {
+    const userId = req.params.id
+    try {
+        const events = await EventCollection.find({
+            "enrollments.userId": userId
+        })
+        /*
+        for(const event of events) {
+            const user = await axios.get(`${config.apiUrl}/users/ids/${event.authorId}`)
+            event.authorUsername = user.data.username
+        }
+        */
+        return res.send(events)
+    } catch (err) {
+        return res.status(400).send({ error: `Could not get enrolled events: ${err}` })
+    }
+}
+
+module.exports = { add, get, getById, getByDate, edit, remove, getByAuthorId, middlewares, addEventAuthorUsername }
