@@ -5,6 +5,7 @@ const auth = require("../middlewares/auth.middleware")
 const proponentClearance = require("../middlewares/proponentClearance.middleware")
 
 router.get("/", controller.get)
+router.get("/dates/", controller.getByDate)
 router.get("/dates/:date", controller.getByDate)
 router.get("/ids/:id", controller.getById)
 router.get("/enrollments/:id", controller.getEnrolledByUserId)

@@ -47,9 +47,9 @@ async function get(req, res) {
     
     try {
         if(!page) {
-            res.send(await EventCollection.find())
+            res.send(await EventCollection.find().sort({ dateStart: 1, hourStart: 1 }))
         } else {
-            res.send(await EventCollection.find().skip(utils.resolvePage(page, 5)).limit(5))
+            res.send(await EventCollection.find().sort({ dateStart: 1, hourStart: 1 }).skip(utils.resolvePage(page, 5)).limit(5))
         }
         return
     } catch (err) {
@@ -61,7 +61,7 @@ async function getById(req, res) {
     const _id = req.params.id
     const error = "Could not get event. "
     try {
-        const response = await EventCollection.findOne({ _id })
+        const response = await EventCollection.findOne({ _id }).sort({ dateStart: 1, hourStart: 1 })
         if (response) {
             return res.send(response)
         } else {
@@ -79,38 +79,51 @@ async function getByDate(req, res) {
     const page = parseInt(req.query.page)
     
     try {
-        if(occasion === "before") {
-            if(page) {
-                const response = await EventCollection.find({
-                    dateStart: {
-                        $lt: date
-                    }
-                }).skip(utils.resolvePage(page, 5)).limit(5)
-                console.log(true)
-                return res.send(response)
-            } else {
-                const response = await EventCollection.find({
-                    dateStart: {
-                        $lt: date
-                    }
-                })
-                res.send(response)
-            }
-            
-        } else if(occasion === "after") {
-            if(page) {
-                
-            } else {
-                
-            }
-        } else {
-            const response = await EventCollection.find({
-                dateStart: {
-                    $gte: date,
-                    $lte: moment(date).endOf('day').toDate()
+        let response
+        switch(occasion) {
+            case "before":
+                if(page) {
+                    response = await EventCollection.find({
+                        dateStart: {
+                            $lt: date
+                        }
+                    }).sort({ dateStart: 1, hourStart: 1 })
+                    .skip(utils.resolvePage(page, 5)).limit(5)
+    
+                    return res.send(response)
+                } else {
+                    response = await EventCollection.find({
+                        dateStart: {
+                            $lt: date
+                        }
+                    }).sort({ dateStart: 1, hourStart: 1 })
+                    res.send(response)
                 }
-            })
-            return res.send(response)
+                break
+            case "after":
+                if(page) {
+                
+                } else {
+                    
+                }
+                break
+            case "today":
+                response = await EventCollection.find({
+                    dateStart: {
+                        $gte: moment(new Date).startOf('day').toDate(),
+                        $lte: moment(date).endOf('day').toDate()
+                    }
+                }).sort({ dateStart: 1, hourStart: 1 })
+                return res.send(response)
+                break
+            default:
+                response = await EventCollection.find({
+                    dateStart: {
+                        $gte: date,
+                        $lte: moment(date).endOf('day').toDate()
+                    }
+                }).sort({ dateStart: 1, hourStart: 1 })
+                return res.send(response)
         }
         return
     } catch (err) {
@@ -153,7 +166,8 @@ async function getByAuthorId(req, res) {
     
     try {
         const events = await EventCollection.find({ authorId },
-        "_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description").lean()
+        "_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description")
+        .sort({ dateStart: 1, hourStart: 1 }).lean()
 
         await util.resolveEventInfo(events)
         
@@ -169,7 +183,8 @@ async function getEnrolledByUserId(req, res) {
     try {
         const events = await EventCollection.find({
             "enrollments.userId": userId
-        },"_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description").lean()
+        },"_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description")
+        .sort({ dateStart: 1, hourStart: 1 }).lean()
 
         await util.resolveEventInfo(events)
         
