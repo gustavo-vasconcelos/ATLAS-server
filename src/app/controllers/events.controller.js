@@ -79,55 +79,68 @@ async function getByDate(req, res) {
     const page = parseInt(req.query.page)
     
     try {
-        let response
-        switch(occasion) {
-            case "before":
-                if(page) {
-                    response = await EventCollection.find({
-                        dateStart: {
-                            $lt: date
-                        }
-                    }).sort({ dateStart: 1, hourStart: 1 })
-                    .skip(utils.resolvePage(page, 5)).limit(5)
-    
-                    return res.send(response)
-                } else {
-                    response = await EventCollection.find({
-                        dateStart: {
-                            $lt: date
-                        }
-                    }).sort({ dateStart: 1, hourStart: 1 })
-                    res.send(response)
-                }
-                break
-            case "after":
-                if(page) {
-                
-                } else {
-                    
-                }
-                break
-            case "today":
-                response = await EventCollection.find({
+        if(occasion === "before") {
+            if(page) {
+                const response = await EventCollection.find({
                     dateStart: {
-                        $gte: moment(new Date).startOf('day').toDate(),
-                        $lte: moment(date).endOf('day').toDate()
+                        $lt: date
                     }
                 }).sort({ dateStart: 1, hourStart: 1 })
+                .skip(utils.resolvePage(page, 5)).limit(5)
+
                 return res.send(response)
-                break
-            default:
-                response = await EventCollection.find({
+            } else {
+                const response = await EventCollection.find({
                     dateStart: {
-                        $gte: date,
-                        $lte: moment(date).endOf('day').toDate()
+                        $lt: date
                     }
                 }).sort({ dateStart: 1, hourStart: 1 })
+                res.send(response)
+            }
+        } else if (occasion === "after") {
+            if(page) {
+                const response = await EventCollection.find({
+                    dateStart: {
+                        $gt: date
+                    }
+                }).sort({ dateStart: 1, hourStart: 1 })
+                .skip(utils.resolvePage(page, 5)).limit(5)
+
                 return res.send(response)
+            } else {
+                const response = await EventCollection.find({
+                    dateStart: {
+                        $gt: date
+                    }
+                }).sort({ dateStart: 1, hourStart: 1 })
+                res.send(response)
+            }
+        } else {
+            const response = await EventCollection.find({
+                dateStart: {
+                    $gte: date,
+                    $lte: date
+                }
+            }).sort({ dateStart: 1, hourStart: 1 })
+            return res.send(response)
         }
         return
     } catch (err) {
         return res.status(400).send({ error: error + err })
+    }
+}
+
+async function getTodays(req, res) {
+    try {
+        const response = await EventCollection.find({
+            dateStart: {
+                $gte: moment(new Date).startOf('day').toDate(),
+                $lte: moment(new Date).endOf('day').toDate()
+            }
+        }).sort({ dateStart: 1, hourStart: 1 })
+        return res.send(response)
+    } catch(err) {
+        return res.status(400).send({error: "Could not get today events: " + err})
     }
 }
 
@@ -207,4 +220,4 @@ const util = {
     }
 }
 
-module.exports = { add, get, getById, getByDate, edit, remove, getByAuthorId, getEnrolledByUserId }
+module.exports = { add, get, getById, getByDate, getTodays, edit, remove, getByAuthorId, getEnrolledByUserId }
