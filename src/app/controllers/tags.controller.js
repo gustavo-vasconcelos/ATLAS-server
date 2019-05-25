@@ -1,4 +1,5 @@
 const Tag = require("../models/tags.model")
+const utils = require("../utils")
 
 async function add(req, res) {
     try {
@@ -62,4 +63,18 @@ async function remove(req, res) {
     }
 }
 
-module.exports = { add, get, getById, edit, remove }
+const util = {
+    getByIdsArray(ids, tags) {
+        let tagsInfo = []
+        ids.forEach(id => {
+            tags.forEach(proponent => {
+                if(proponent._id.equals(id)) {
+                    tagsInfo.push(proponent)
+                }
+            })
+        })
+        return tagsInfo
+    }
+}
+
+module.exports = { add, get, getById, edit, remove, util }

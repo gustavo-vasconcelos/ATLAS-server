@@ -62,4 +62,18 @@ async function remove(req, res) {
     }
 }
 
-module.exports = { add, get, getById, edit, remove }
+const util = {
+    getByIdsArray(ids, tags) {
+        let coursesInfo = []
+        ids.forEach(id => {
+            tags.forEach(tag => {
+                if(tag._id.equals(id)) {
+                    coursesInfo.push(tag)
+                }
+            })
+        })
+        return coursesInfo
+    }
+}
+
+module.exports = { add, get, getById, edit, remove, util }

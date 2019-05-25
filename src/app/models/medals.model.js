@@ -22,7 +22,7 @@ const MedalSchema = new mongoose.Schema({
             type: String,
             required: true
         },
-        constrains: {
+        constrain: {
             type: Number,
             required: true
         }

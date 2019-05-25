@@ -2,7 +2,13 @@ const EventCollection = require("../models/events.model")
 const moment = require("moment")
 const axios = require("axios")
 const config = require("../../config")
-const UserCollection = require("../models/users.model")
+const User = require("../models/users.model")
+const Tag = require("../models/tags.model")
+const utils = require("../utils")
+const controllers = {
+    tags: require("./tags.controller"),
+    users: require("./users.controller")
+}
 
 async function add(req, res) {
     const { tags, enrollments } = req.body
@@ -37,8 +43,15 @@ async function add(req, res) {
 }
 
 async function get(req, res) {
+    const page = parseInt(req.query.page)
+    
     try {
-        return res.send(await EventCollection.find())
+        if(!page) {
+            res.send(await EventCollection.find())
+        } else {
+            res.send(await EventCollection.find().skip(utils.resolvePage(page, 5)).limit(5))
+        }
+        return
     } catch (err) {
         return res.status(400).send({ error: "Could not get events. " + err })
     }
@@ -62,18 +75,44 @@ async function getById(req, res) {
 async function getByDate(req, res) {
     const error = "Could not get events. "
     const date = moment(req.params.date).toDate()
+    const occasion = req.query.occasion
+    const page = parseInt(req.query.page)
+    
     try {
-        const response = await EventCollection.find({
-            dateStart: {
-                $gte: date,
-                $lte: moment(date).endOf('day').toDate()
+        if(occasion === "before") {
+            if(page) {
+                const response = await EventCollection.find({
+                    dateStart: {
+                        $lt: date
+                    }
+                }).skip(utils.resolvePage(page, 5)).limit(5)
+                console.log(true)
+                return res.send(response)
+            } else {
+                const response = await EventCollection.find({
+                    dateStart: {
+                        $lt: date
+                    }
+                })
+                res.send(response)
             }
-        })
-        if (response.length) {
-            return res.send(response)
+            
+        } else if(occasion === "after") {
+            if(page) {
+                
+            } else {
+                
+            }
         } else {
-            return res.status(404).send({ error: error + `There are not events.`})
+            const response = await EventCollection.find({
+                dateStart: {
+                    $gte: date,
+                    $lte: moment(date).endOf('day').toDate()
+                }
+            })
+            return res.send(response)
         }
+        return
     } catch (err) {
         return res.status(400).send({ error: error + err })
     }
@@ -98,15 +137,12 @@ async function remove(req, res) {
     const _id = req.params.id
     const error = "Could not remove event. "
     try {
-        await EventCollection.findByIdAndDelete(_id)
-        return res.send()
-        /*
         if (await EventCollection.findOne({ _id })) {
             await EventCollection.findByIdAndDelete(_id)
             return res.send()
         } else {
             return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
-        }*/
+        }
     } catch (err) {
         return res.status(400).send({ error: error + err })
     }
@@ -116,44 +152,44 @@ async function getByAuthorId(req, res) {
     const authorId = req.params.id
     
     try {
-        return res.send(await EventCollection.find({ authorId }))
+        const events = await EventCollection.find({ authorId },
+        "_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description").lean()
+
+        await util.resolveEventInfo(events)
+        
+        return res.send(events)
     } catch (err) {
         return res.status(400).send({ error: `Could not get events created by '${authorId}': ${err}` })
     }
    
 }
 
-const middlewares = {
-    async getUserById(req, res, next) {
-        const userId = req.params.id
-
-        try {
-            
-            
-            req.events = events
-            return next()
-        } catch (err) {
-            return res.status(400).send({ error: `Could not get enrolled events of user '${userId}': ${err}` })
-        }
-    }
-}
-
-async function addEventAuthorUsername(req, res) {
+async function getEnrolledByUserId(req, res) {
     const userId = req.params.id
     try {
         const events = await EventCollection.find({
             "enrollments.userId": userId
-        })
-        /*
-        for(const event of events) {
-            const user = await axios.get(`${config.apiUrl}/users/ids/${event.authorId}`)
-            event.authorUsername = user.data.username
-        }
-        */
+        },"_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description").lean()
+
+        await util.resolveEventInfo(events)
+        
         return res.send(events)
-    } catch (err) {
+    } catch(err) {
         return res.status(400).send({ error: `Could not get enrolled events: ${err}` })
     }
 }
 
-module.exports = { add, get, getById, getByDate, edit, remove, getByAuthorId, middlewares, addEventAuthorUsername }
+const util = {
+    async resolveEventInfo(events) {
+        const proponents = await User.find({ profileId: { $ne: 1 } }).select("username").lean()
+        const tags = await Tag.find().select("-__v").lean()
+        
+        for(const event of events) {
+            event.author = controllers.users.util.getUsernameById(event.authorId, proponents)
+            event.authorId = undefined
+            event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
+        }
+    }
+}
+
+module.exports = { add, get, getById, getByDate, edit, remove, getByAuthorId, getEnrolledByUserId }
