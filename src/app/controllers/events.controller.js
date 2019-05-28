@@ -4,10 +4,12 @@ const axios = require("axios")
 const config = require("../../config")
 const User = require("../models/users.model")
 const Tag = require("../models/tags.model")
+const Course = require("../models/courses.model")
 const utils = require("../utils")
 const controllers = {
     tags: require("./tags.controller"),
-    users: require("./users.controller")
+    users: require("./users.controller"),
+    courses: require("./courses.controller")
 }
 
 async function add(req, res) {
@@ -49,7 +51,9 @@ async function get(req, res) {
         if(!page) {
             res.send(await EventCollection.find().sort({ dateStart: 1, hourStart: 1 }))
         } else {
-            res.send(await EventCollection.find().sort({ dateStart: 1, hourStart: 1 }).skip(utils.resolvePage(page, 5)).limit(5))
+            res.send(await EventCollection.find()
+            .select(util.data.defaultSelection)
+            .sort({ dateStart: 1, hourStart: 1 }).skip(utils.resolvePage(page, 5)).limit(5))
         }
         return
     } catch (err) {
@@ -61,9 +65,83 @@ async function getById(req, res) {
     const _id = req.params.id
     const error = "Could not get event. "
     try {
-        const response = await EventCollection.findOne({ _id }).sort({ dateStart: 1, hourStart: 1 })
+        const response = await EventCollection.find({ _id })
+        .select("-__v")
+        .sort({ dateStart: 1, hourStart: 1 })
+        .lean()
         if (response) {
+            await util.resolveEventInfo(response)
             return res.send(response)
+        } else {
+            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+        }
+    } catch (err) {
+        return res.status(400).send({ error: error + err })
+    }
+}
+
+async function getByIdAndRelated(req, res) {
+    const _id = req.params.id
+    const error = "Could not get event. "
+    try {
+        const response = await EventCollection.findOne({ _id })
+        .select("-__v")
+        .sort({ dateStart: 1, hourStart: 1 }).lean()
+        if (response) {
+            // get related events (with same tags or courses)
+            const related = await EventCollection.find().and([
+                {
+                    $or: [
+                        {
+                            tags: {
+                                $in: response.tags
+                            },
+                        },
+                        {
+                            coursesIds: {
+                                $in: response.coursesIds
+                            }
+                        }
+                    ]
+                },
+                {
+                    _id: {
+                        $ne: response._id
+                    }
+                }
+            ])
+            .select("-__v")
+            .sort({ dateStart: 1, hourStart: 1 })
+            .lean()
+            
+            // resolves info (tags, courses, author username)
+            const proponents = await User.find({ profileId: { $ne: 1 } }).select("username").lean()
+            const tags = await Tag.find().select("-__v").lean()
+            const courses = await Course.find().select("-__v").lean()
+            
+            // event
+            response.author = controllers.users.util.getUsernameById(response.authorId, proponents)
+            response.authorId = undefined
+            
+            response.tags = controllers.tags.util.getByIdsArray(response.tags, tags)
+            
+            response.courses = controllers.courses.util.getByIdsArray(response.coursesIds, courses)
+            response.coursesIds = undefined
+            
+            for(const event of related) {
+                event.author = controllers.users.util.getUsernameById(event.authorId, proponents)
+                event.authorId = undefined
+                
+                event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
+                
+                event.courses = controllers.courses.util.getByIdsArray(event.coursesIds, courses)
+                event.coursesIds = undefined
+            }
+            
+            return res.send({
+                event: response,
+                related
+            })
         } else {
             return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
         }
@@ -77,68 +155,110 @@ async function getByDate(req, res) {
     const date = moment(req.params.date).toDate()
     const occasion = req.query.occasion
     const page = parseInt(req.query.page)
+    const selectOptions = ""
+    
+    let events = null
     
     try {
         if(occasion === "before") {
             if(page) {
-                const response = await EventCollection.find({
+                events = await EventCollection.find({
                     dateStart: {
                         $lt: date
                     }
-                }).sort({ dateStart: 1, hourStart: 1 })
-                .skip(utils.resolvePage(page, 5)).limit(5)
-
-                return res.send(response)
+                })
+                .select(util.data.defaultSelection)
+                .sort({ dateStart: 1, hourStart: 1 })
+                .skip(utils.resolvePage(page, 5)).limit(5).lean()
             } else {
-                const response = await EventCollection.find({
+                events = await EventCollection.find({
                     dateStart: {
                         $lt: date
                     }
-                }).sort({ dateStart: 1, hourStart: 1 })
-                res.send(response)
+                })
+                .select(util.data.defaultSelection)
+                .sort({ dateStart: 1, hourStart: 1 }).lean()
             }
         } else if (occasion === "after") {
             if(page) {
-                const response = await EventCollection.find({
+                events = await EventCollection.find({
                     dateStart: {
                         $gt: date
                     }
-                }).sort({ dateStart: 1, hourStart: 1 })
-                .skip(utils.resolvePage(page, 5)).limit(5)
-
-                return res.send(response)
+                })
+                .select(util.data.defaultSelection)
+                .sort({ dateStart: 1, hourStart: 1 })
+                .skip(utils.resolvePage(page, 5)).limit(5).lean()
             } else {
-                const response = await EventCollection.find({
+                events = await EventCollection.find({
                     dateStart: {
                         $gt: date
                     }
-                }).sort({ dateStart: 1, hourStart: 1 })
-                res.send(response)
+                })
+                .select(util.data.defaultSelection)
+                .sort({ dateStart: 1, hourStart: 1 }).lean()
             }
         } else {
-            const response = await EventCollection.find({
+            events = await EventCollection.find({
                 dateStart: {
                     $gte: date,
                     $lte: date
                 }
-            }).sort({ dateStart: 1, hourStart: 1 })
-            return res.send(response)
+            })
+            .select(util.data.defaultSelection)
+            .sort({ dateStart: 1, hourStart: 1 }).lean()
         }
-        return
+        // resolves tags names and author username
+        if(events) {
+            await util.resolveEventInfo(events) 
+            return res.send(events)
+        } else {
+            return res.send({ error: "Could not find events with these parameters." })
+        }
+        
     } catch (err) {
         return res.status(400).send({ error: error + err })
     }
 }
 
-async function getTodays(req, res) {
+async function getOccasions(req, res) {
+    const occasion = req.query.occasion
+    
     try {
-        const response = await EventCollection.find({
-            dateStart: {
-                $gte: moment(new Date).startOf('day').toDate(),
-                $lte: moment(new Date).endOf('day').toDate()
-            }
-        }).sort({ dateStart: 1, hourStart: 1 })
-        return res.send(response)
+        let events = null
+        if(occasion === "before") {
+            events = await EventCollection.find({
+                dateStart: {
+                    $lt: moment(new Date).toDate()
+                }
+            })
+            .select(util.data.defaultSelection)
+            .sort({ dateStart: 1, hourStart: 1 }).lean()
+        } else if(occasion === "after") {
+            events = await EventCollection.find({
+                dateStart: {
+                    $gt: moment(new Date).toDate(),
+                }
+            })
+            .select(util.data.defaultSelection)
+            .sort({ dateStart: 1, hourStart: 1 }).lean()
+        } else if(occasion === "today") {
+            events = await EventCollection.find({
+                dateStart: {
+                    $gte: moment(new Date).startOf('day').toDate(),
+                    $lte: moment(new Date).endOf('day').toDate()
+                }
+            })
+            .select(util.data.defaultSelection)
+            .sort({ dateStart: 1, hourStart: 1 }).lean()
+        } else {
+            return res.send({ error: "Could not get events. Select an occasion as query parameter: ['today', 'before', 'after']." })
+        }
+        if(events) {
+            await util.resolveEventInfo(events)
+            return res.send(events)
+        }
+        return res.send()
     } catch(err) {
         return res.status(400).send({error: "Could not get today events: " + err})
     }
@@ -178,8 +298,8 @@ async function getByAuthorId(req, res) {
     const authorId = req.params.id
     
     try {
-        const events = await EventCollection.find({ authorId },
-        "_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description")
+        const events = await EventCollection.find({ authorId })
+        .select(util.data.defaultSelection)
         .sort({ dateStart: 1, hourStart: 1 }).lean()
 
         await util.resolveEventInfo(events)
@@ -196,7 +316,8 @@ async function getEnrolledByUserId(req, res) {
     try {
         const events = await EventCollection.find({
             "enrollments.userId": userId
-        },"_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description")
+        })
+        .select(util.data.defaultSelection)
         .sort({ dateStart: 1, hourStart: 1 }).lean()
 
         await util.resolveEventInfo(events)
@@ -208,16 +329,24 @@ async function getEnrolledByUserId(req, res) {
 }
 
 const util = {
+    data: {
+        defaultSelection: "_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description coursesIds classroom"  
+    },
     async resolveEventInfo(events) {
         const proponents = await User.find({ profileId: { $ne: 1 } }).select("username").lean()
         const tags = await Tag.find().select("-__v").lean()
+        const courses = await Course.find().select("-__v").lean()
         
         for(const event of events) {
             event.author = controllers.users.util.getUsernameById(event.authorId, proponents)
             event.authorId = undefined
+            
             event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
+            
+            event.courses = controllers.courses.util.getByIdsArray(event.coursesIds, courses)
+            event.coursesIds = undefined
         }
     }
 }
 
-module.exports = { add, get, getById, getByDate, getTodays, edit, remove, getByAuthorId, getEnrolledByUserId }
+module.exports = { add, get, getById, getByDate, getOccasions, edit, remove, getByAuthorId, getEnrolledByUserId, getByIdAndRelated }
