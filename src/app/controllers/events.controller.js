@@ -84,29 +84,29 @@ async function getByIdAndRelated(req, res) {
     const _id = req.params.id
     const error = "Could not get event. "
     try {
-        const response = await EventCollection.findOne({ _id })
+        const event = await EventCollection.findOne({ _id })
         .select("-__v")
         .sort({ dateStart: 1, hourStart: 1 }).lean()
-        if (response) {
+        if (event) {
             // get related events (with same tags or courses)
             const related = await EventCollection.find().and([
                 {
                     $or: [
                         {
                             tags: {
-                                $in: response.tags
+                                $in: event.tags
                             },
                         },
                         {
                             coursesIds: {
-                                $in: response.coursesIds
+                                $in: event.coursesIds
                             }
                         }
                     ]
                 },
                 {
                     _id: {
-                        $ne: response._id
+                        $ne: event._id
                     }
                 }
             ])
@@ -125,7 +125,7 @@ async function getByIdAndRelated(req, res) {
             related.sort((a, b) => {
                 if(a.dateStart > b.dateStart) {
                     return -1
-                } else {
+                } else if(a.dateStart < b.dateStart) {
                     return 1
                 }
                 return 0
@@ -136,32 +136,47 @@ async function getByIdAndRelated(req, res) {
             const tags = await Tag.find().select("-__v").lean()
             const courses = await Course.find().select("-__v").lean()
             
-            // event
-            response.author = controllers.users.util.getUsernameById(response.authorId, users)
-            response.author.picture = undefined
-            response.authorId = undefined
+            // resolves event info
+            event.author = controllers.users.util.getUsernameById(event.authorId, users)
+            event.author.picture = undefined
+            event.authorId = undefined
             
-            response.tags = controllers.tags.util.getByIdsArray(response.tags, tags)
+            event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
             
-            response.courses = controllers.courses.util.getByIdsArray(response.coursesIds, courses)
-            response.coursesIds = undefined
+            event.courses = controllers.courses.util.getByIdsArray(event.coursesIds, courses)
+            event.coursesIds = undefined
             
             let enrollments = []
-            for(let enrollment of response.enrollments) {
+            event.enrollments.forEach(enrollment => {
                 enrollment.user = controllers.users.util.getUsernameById(enrollment.userId, users)
                 enrollment.userId = undefined
-            }
+            })
             
-            for(const event of related) {
-                event.author = controllers.users.util.getUsernameById(event.authorId, users)
-                event.author.picture = undefined
-                event.authorId = undefined
+            event.discussions.forEach(discussion => {
+                discussion.answers = discussion.answers.length
+                discussion.content = undefined
                 
-                event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
-            }
+                discussion.author = controllers.users.util.getUsernameById(discussion.authorId, users)
+                discussion.authorId = undefined
+                
+                discussion.usersVoted.forEach(userVoted => {
+                    userVoted = controllers.users.util.getUsernameById(userVoted, users)
+                })
+                
+                
+            })
+            
+            // resolves related events info
+            related.forEach(relatedEvent => {
+                relatedEvent.author = controllers.users.util.getUsernameById(relatedEvent.authorId, users)
+                relatedEvent.author.picture = undefined
+                relatedEvent.authorId = undefined
+                
+                relatedEvent.tags = controllers.tags.util.getByIdsArray(relatedEvent.tags, tags)
+            })
             
             return res.send({
-                event: response,
+                event: event,
                 related
             })
         } else {
@@ -407,6 +422,33 @@ async function removeEnrollment(req, res) {
     }
 }
 
+async function addDiscussion(req, res) {
+    const _id = req.params.id
+    const { authorId, category, title, content } = req.body
+    try {
+        const event = await EventCollection.findOne({ _id })
+        if(!event) {
+            return res.status(400).send({ error: "Event does not exist." })
+        }
+        
+        // verifies user
+        const user = User.findOne({ _id: authorId }).lean()
+        if(!user) {
+            return res.status(400).send({ error: "User does not exist." })
+        }
+        
+        event.discussions.push({ authorId, category, title, content, upvotes: 0, downvotes: 0 })
+        await event.save()
+        return res.send()
+    } catch(err) {
+        return res.status(400).send({ error: "Could not add discussion: " + err })
+    }
+}
+
+async function removeDiscussion(req, res) {
+    
+}
+
 const util = {
     data: {
         defaultSelection: "_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description coursesIds classroom"  
@@ -440,5 +482,7 @@ module.exports = {
     getEnrolledByUserId,
     getByIdAndRelated,
     addEnrollment,
-    removeEnrollment
+    removeEnrollment,
+    addDiscussion,
+    removeDiscussion
 }

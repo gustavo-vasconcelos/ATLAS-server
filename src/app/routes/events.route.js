@@ -14,7 +14,11 @@ router.get("/authors/:id", controller.getByAuthorId)
 router.post("/", /*auth, proponentClearance, */controller.add)
 router.put("/:id", /*auth, proponentClearance, */controller.edit)
 router.delete("/:id", /*auth, proponentClearance, */controller.remove)
+// enrollments
 router.post("/ids/:id/enrollments", controller.addEnrollment)
 router.delete("/ids/:id/enrollments/:userId", controller.removeEnrollment)
+// discussions
+router.post("/ids/:id/discussions", controller.addDiscussion)
+router.delete("/ids/:id/discussions/:discussionId", controller.removeDiscussion)
 
 module.exports = app => app.use("/events", router)
