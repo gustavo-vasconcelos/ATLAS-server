@@ -422,6 +422,28 @@ async function removeEnrollment(req, res) {
     }
 }
 
+async function getDiscussionById(req, res) {
+    const { id: _id, discussionId } = req.params
+
+    try {
+        const event = await EventCollection.findOne({ _id }).lean()
+        if(!event) {
+            return res.send({ error: "Event not found." })
+        }
+        
+        let eventDiscussion
+        event.discussions.forEach(discussion => {
+            if(discussion._id.equals(discussionId)) {
+                eventDiscussion = discussion
+            }
+        })
+
+        return res.send(eventDiscussion)
+    } catch(err) {
+        return res.status(400).send({ error: "Could not find discussion. " + err })
+    }
+}
+
 async function addDiscussion(req, res) {
     const _id = req.params.id
     const { authorId, category, title, content } = req.body
@@ -445,7 +467,7 @@ async function addDiscussion(req, res) {
     }
 }
 
-async function removeDiscussion(req, res) {
+async function removeDiscussionById(req, res) {
     
 }
 
@@ -483,6 +505,7 @@ module.exports = {
     getByIdAndRelated,
     addEnrollment,
     removeEnrollment,
+    getDiscussionById,
     addDiscussion,
-    removeDiscussion
+    removeDiscussionById
 }
