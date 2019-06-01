@@ -110,17 +110,35 @@ async function getByIdAndRelated(req, res) {
                     }
                 }
             ])
-            .select("-__v")
+            .select("_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description classroom")
             .sort({ dateStart: 1, hourStart: 1 })
             .lean()
             
+            // randomly sorts related events
+            related.sort((a, b) => {
+                return 0.5 - Math.random()
+            })
+            
+            if(related.length > 4) related.length = 4
+            
+            // sorts by date again
+            related.sort((a, b) => {
+                if(a.dateStart > b.dateStart) {
+                    return -1
+                } else {
+                    return 1
+                }
+                return 0
+            })
+            
             // resolves info (tags, courses, author username)
-            const proponents = await User.find({ profileId: { $ne: 1 } }).select("username").lean()
+            const users = await User.find().select("username picture").lean()
             const tags = await Tag.find().select("-__v").lean()
             const courses = await Course.find().select("-__v").lean()
             
             // event
-            response.author = controllers.users.util.getUsernameById(response.authorId, proponents)
+            response.author = controllers.users.util.getUsernameById(response.authorId, users)
+            response.author.picture = undefined
             response.authorId = undefined
             
             response.tags = controllers.tags.util.getByIdsArray(response.tags, tags)
@@ -128,14 +146,18 @@ async function getByIdAndRelated(req, res) {
             response.courses = controllers.courses.util.getByIdsArray(response.coursesIds, courses)
             response.coursesIds = undefined
             
+            let enrollments = []
+            for(let enrollment of response.enrollments) {
+                enrollment.user = controllers.users.util.getUsernameById(enrollment.userId, users)
+                enrollment.userId = undefined
+            }
+            
             for(const event of related) {
-                event.author = controllers.users.util.getUsernameById(event.authorId, proponents)
+                event.author = controllers.users.util.getUsernameById(event.authorId, users)
+                event.author.picture = undefined
                 event.authorId = undefined
                 
                 event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
-                
-                event.courses = controllers.courses.util.getByIdsArray(event.coursesIds, courses)
-                event.coursesIds = undefined
             }
             
             return res.send({
@@ -328,6 +350,63 @@ async function getEnrolledByUserId(req, res) {
     }
 }
 
+async function addEnrollment(req, res) {
+    const _id = req.params.id
+    const { userId, paid } = req.body
+    
+    try {
+        const event = await EventCollection.findOne({ _id })
+        if(!event) {
+            return res.status(400).send({ error: "Event does not exist." })
+        }
+        
+        // verifies user
+        const user = await User.findOne({ _id: userId })
+        if(!user) {
+            return res.status(400).send({ error: "User does not exist." })
+        }
+        
+        const alreadyEnrolled = event.enrollments.find(enrollment => enrollment.userId.equals(userId))
+        if(alreadyEnrolled) {
+            return res.status(400).send({ error: "User already enrolled." })
+        }
+        
+        event.enrollments.push({ userId, paid })
+        await event.save()
+        
+        return res.send()
+    } catch(err) {
+        return res.status(400).send({ error: "Could not add enrollment: " + err })
+    }
+}
+
+async function removeEnrollment(req, res) {
+    const { id: _id, userId } = req.params
+    
+    try {
+        const event = await EventCollection.findOne({ _id })
+        if(!event) {
+            return res.status(400).send({ error: "Event does not exist." })
+        }
+        
+        // verifies user
+        const user = await User.findOne({ _id: userId })
+        if(!user) {
+            return res.status(400).send({ error: "User does not exist." })
+        }
+        
+        const enrolledEvent = event.enrollments.findIndex(enrollment => enrollment.userId.equals(userId))
+        if(enrolledEvent === -1) {
+            return res.status(400).send({ error: "User is not enrolled." })
+        }
+        event.enrollments.splice(enrolledEvent, 1)
+        await event.save()
+        return res.send()
+    } catch(err) {
+        return res.status(400).send({ error: "Could not remove enrollment: " + err })
+    }
+}
+
 const util = {
     data: {
         defaultSelection: "_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description coursesIds classroom"  
@@ -349,4 +428,17 @@ const util = {
     }
 }
 
-module.exports = { add, get, getById, getByDate, getOccasions, edit, remove, getByAuthorId, getEnrolledByUserId, getByIdAndRelated }
+module.exports = {
+    add,
+    get,
+    getById,
+    getByDate,
+    getOccasions,
+    edit,
+    remove,
+    getByAuthorId,
+    getEnrolledByUserId,
+    getByIdAndRelated,
+    addEnrollment,
+    removeEnrollment
+}
