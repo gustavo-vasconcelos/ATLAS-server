@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken")
 const config = require("../../config")
+const messages = require("../jsonmessages/messages")
 
 module.exports = (req, res, next) => {
     // gets request "authorization" header
@@ -7,7 +8,7 @@ module.exports = (req, res, next) => {
     
     // if "authorization" does not exist
     if(!authHeader) {
-        return res.status(401).send({ error: "Missing token." })
+        return res.status(messages.token.missing.status).send(messages.token.missing)
     }
     
     // splits "authorization" header
@@ -16,20 +17,20 @@ module.exports = (req, res, next) => {
     
     // a token has this layout: "Bearer + token"
     if(parts.length !== 2) {
-        return res.status(401).send({ error: "Token malformated." })
+        return res.status(messages.token.malformated.status).send(messages.token.malformated)
     }
     
     const [bearer, token] = parts
     
     if(bearer !== "Bearer") {
-        return res.status(401).send({ error: "Token malformated." })
+        return res.status(messages.token.malformated.status).send(messages.token.malformated)
     }
     
     
     // verifies token integrity
     jwt.verify(token, config.auth.secret, (err, decoded) => {
         if(err) {
-            return res.status(401).send({ error: "Invalid token." })
+            return res.status(messages.token.invalid.status).send(messages.token.invalid)
         }
         
         // stores variables into req object

@@ -10,6 +10,8 @@ app.use(bodyParser.json())
 app.use(bodyParser.urlencoded({ extended: false }))
 
 app.use(cors())
+
+
 /*
 const permittedLinker = ["http://localhost:8080", "https://atlas-gustavovasconcelos.c9users.io/"]
 
@@ -32,6 +34,7 @@ app.use(function (req, res, next) {
 */
 
 // imports all controllers
+
 require("./app/routes/index")(app)
 
 require("./app/controllers/chat/index.controller")(http)

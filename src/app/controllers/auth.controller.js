@@ -3,6 +3,7 @@ const bcrypt = require("bcrypt")
 const jwt = require("jsonwebtoken")
 const config = require("../../config")
 const crypto = require("crypto")
+const messages = require("../jsonmessages/messages")
 
 function generateToken(userId, userProfileId) {
      return jwt.sign({
@@ -11,6 +12,14 @@ function generateToken(userId, userProfileId) {
      }, config.auth.secret, {
         expiresIn: 3600
     })
+}
+
+async function getUserByJwt(req, res) {
+    try {
+        return res.send(await User.findOne({ _id: req.loggedUserId }).select("username profileId picture").lean())
+    } catch(err) {
+        return res.status(messages.token.invalid.status).send(messages.token.invalid)
+    }
 }
 
 async function signUp(req, res) {
@@ -35,20 +44,27 @@ async function signIn(req, res) {
     try {
         const user = await User.findOne({ username }).select("+password")
         if(!user) {
-            return res.status(404).send({error: "User not found."})
+            return res.status(messages.user.invalidUsername.status).send(messages.user.invalidUsername)
         } else {
             if(!await bcrypt.compare(password, user.password)) {
-                return res.status(404).send({error: "User not found."})
+                return res.status(messages.user.invalidPassword.status).send(messages.user.invalidPassword)
             }
            
             user.password = undefined
-            return res.send({
-                user,
-                token: generateToken(user.id, user.profileId)
-            })
+            return res.status(messages.user.loginSuccess().status).send(
+                messages.user.loginSuccess(
+                    generateToken(user._id, user.profileId),
+                    { 
+                        username: user.username,
+                        profileId: user.profileId,
+                        picture: user.picture
+                    }
+                )
+            )
         }
 
     } catch (err) {
+        console.log(err)
         return res.status(400).send({ error: err })
     }
 }
@@ -111,4 +127,4 @@ async function resetPassword(req, res) {
 }
 
 
-module.exports = { signUp, signIn, forgotPassword, resetPassword }
+module.exports = { getUserByJwt, signUp, signIn, forgotPassword, resetPassword }
