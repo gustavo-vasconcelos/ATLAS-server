@@ -21,5 +21,12 @@ router.delete("/ids/:id/enrollments/:userId", controller.removeEnrollment)
 router.get("/ids/:id/discussions/:discussionId", controller.getDiscussionById)
 router.post("/ids/:id/discussions", controller.addDiscussion)
 router.delete("/ids/:id/discussions/:discussionId", controller.removeDiscussionById)
+// discussion answers
+router.post("/ids/:id/discussions/:discussionId/answers",
+    controller.util.middlewares.verifiesEventIntegrity,
+    controller.util.middlewares.verifiesDiscussionIntegrity,
+    controller.addDiscussionAnswer
+)
+router.delete("/ids/:id/discussions/:discussionId/answers", controller.removeDiscussionAnswer)
 
 module.exports = app => app.use("/events", router)

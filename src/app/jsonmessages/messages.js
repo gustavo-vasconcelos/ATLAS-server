@@ -1,4 +1,14 @@
 module.exports = {
+    db: {
+      error: {
+         description: "dbError",
+        message: {
+            pt: "Algo correu mal."
+        },
+        status: 503,
+        success: false
+      }  
+    },
     user: {
         invalidUsername: {
             description: "invalidUsername",
@@ -25,6 +35,28 @@ module.exports = {
                 content: { jwt, user },
                 status: 200,
                 success: true
+            }
+        }
+    },
+    event: {
+        notFound: {
+            description: "eventNotFound",
+            message: {
+                en: "Event not found.",
+                pt: "Evento não encontrado."
+            },
+            status: 404,
+            success: false
+        },
+        discussion: {
+            notFound: {
+                description: "eventDiscussionNotFound",
+                message: {
+                    en: "Discussion not found.",
+                    pt: "Discussão não encontrada."
+                },
+                status: 404,
+                success: false
             }
         }
     },

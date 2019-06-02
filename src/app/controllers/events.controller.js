@@ -11,6 +11,7 @@ const controllers = {
     users: require("./users.controller"),
     courses: require("./courses.controller")
 }
+const messages = require("../jsonmessages/messages")
 
 async function add(req, res) {
     const { tags, enrollments } = req.body
@@ -437,8 +438,27 @@ async function getDiscussionById(req, res) {
                 eventDiscussion = discussion
             }
         })
+        
+        const users = await User.find().select("username picture profileId").lean()
+        // resolves author info
+        eventDiscussion.author = controllers.users.util.getUsernameById(eventDiscussion.authorId, users)
+        eventDiscussion.authorId = undefined
+        
+        // resolves answers authors info
+        eventDiscussion.answers.forEach(answer => {
+            answer.author = controllers.users.util.getUsernameById(answer.authorId, users)
+            answer.authorId = undefined
+        })
+        
 
-        return res.send(eventDiscussion)
+        return res.send({
+            event: {
+                _id: event._id,
+                category: event.category,
+                name: event.name
+            },
+            discussion: eventDiscussion
+        })
     } catch(err) {
         return res.status(400).send({ error: "Could not find discussion. " + err })
     }
@@ -471,6 +491,24 @@ async function removeDiscussionById(req, res) {
     
 }
 
+async function addDiscussionAnswer(req, res) {
+    const { id: _id, discussionId } = req.params
+    const { event, discussion } = req
+    const { authorId, content } = req.body
+    
+    try {
+        discussion.answers.push({ authorId, content })
+        await event.save()
+        return res.send()
+    } catch(err) {
+        return res.status(400).send({ error: err.message })
+    }
+}
+
+async function removeDiscussionAnswer(req, res) {
+    
+}
+
 const util = {
     data: {
         defaultSelection: "_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description coursesIds classroom"  
@@ -489,10 +527,38 @@ const util = {
             event.courses = controllers.courses.util.getByIdsArray(event.coursesIds, courses)
             event.coursesIds = undefined
         }
+    },
+    middlewares: {
+        async verifiesEventIntegrity(req, res, next) {
+            try {
+                const event = await EventCollection.findOne({ _id: req.params.id })
+                if(!event) {
+                    return res.status(messages.event.notFound.status).send(messages.event.notFound)
+                }
+                req.event = event
+                return next()
+            } catch (err) {
+                return res.status(messages.db.error.status).send(messages.db.error)
+            }
+        },
+        async verifiesDiscussionIntegrity(req, res, next) {
+            try {
+                const event = req.event
+                const discussion = event.discussions.find(eventDiscussion => eventDiscussion._id.equals(req.params.discussionId))
+                if(!discussion) {
+                    return res.status(messages.event.discussion.notFound.status).send(messages.event.discussion.notFound)
+                }
+                req.discussion = discussion
+                return next()
+            } catch (err) {
+                return res.status(messages.db.error.status).send(messages.db.error)
+            }
+        }
     }
 }
 
 module.exports = {
+    util,
     add,
     get,
     getById,
@@ -507,5 +573,7 @@ module.exports = {
     removeEnrollment,
     getDiscussionById,
     addDiscussion,
-    removeDiscussionById
+    removeDiscussionById,
+    addDiscussionAnswer,
+    removeDiscussionAnswer
 }
