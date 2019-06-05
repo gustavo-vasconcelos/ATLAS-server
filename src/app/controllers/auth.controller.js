@@ -23,6 +23,7 @@ async function getUserByJwt(req, res) {
 }
 
 async function signUp(req, res) {
+    req.body.profileId = 1
     try {
         const user = await User.create(req.body)
         return res.send({
@@ -126,5 +127,9 @@ async function resetPassword(req, res) {
     }
 }
 
+async function checkPermissions(req, res) {
+    
+}
 
-module.exports = { getUserByJwt, signUp, signIn, forgotPassword, resetPassword }
+
+module.exports = { getUserByJwt, signUp, signIn, forgotPassword, resetPassword, checkPermissions }

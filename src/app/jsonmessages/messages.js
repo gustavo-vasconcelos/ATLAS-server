@@ -10,6 +10,16 @@ module.exports = {
       }  
     },
     user: {
+        getUsers(users) {
+            return {
+                description: "getUsers",
+                content: {
+                    users
+                },
+                status: 200,
+                success: true
+            }
+        },
         invalidUsername: {
             description: "invalidUsername",
             message: {

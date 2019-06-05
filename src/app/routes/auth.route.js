@@ -8,6 +8,7 @@ router.post("/sign-up", controller.signUp)
 router.post("/sign-in", controller.signIn)
 router.post("/forgot-password", controller.forgotPassword)
 router.post("/reset-password", controller.resetPassword)
+router.post("/permissions", controller.checkPermissions)
 
 module.exports = app => app.use("/auth", router)
 

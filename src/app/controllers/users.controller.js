@@ -6,6 +6,7 @@ const controllers = {
     tags: require("./tags.controller"),
     courses: require("./courses.controller")
 }
+const messages = require("../jsonmessages/messages")
 
 async function add(req, res) {
     try {
@@ -42,6 +43,30 @@ async function get(req, res) {
         return users.length === 1 ? res.send(users[0]) : res.send(users)
     } catch (err) {
         return res.status(400).send({ error: `Could not get users: ${err}.` })
+    }
+}
+
+async function getToBackoffice(req, res) {
+    try {
+        const users = await User.find().select("picture firstName lastName username email profileId").lean()
+        users.forEach(user => {
+            switch(user.profileId) {
+                case 1: 
+                    user.profile = "Aluno"
+                    break
+                case 2:
+                    user.profile = "Proponente"
+                    break
+                case 3:
+                    user.profile = "Administrador"
+                    break
+            }
+            user.profileId = undefined
+        })
+        res.status(messages.user.getUsers().status).send(messages.user.getUsers(users))
+    } catch(err) {
+        console.log(err)
+        res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
@@ -131,4 +156,4 @@ const util = {
     }
 }
 
-module.exports = { add, get, getById, edit, remove, util }
+module.exports = { add, get, getById, edit, remove, util, getToBackoffice }
