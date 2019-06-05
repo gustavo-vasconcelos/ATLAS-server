@@ -1,6 +1,5 @@
 const mongoose = require("../../database/connection")
 const ObjectId = mongoose.Schema.Types.ObjectId
-const bcrypt = require("bcrypt")
 
 const MedalSchema = new mongoose.Schema({
     details: {
