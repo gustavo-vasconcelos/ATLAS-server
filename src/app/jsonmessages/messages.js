@@ -25,7 +25,7 @@ module.exports = {
             message: {
                 pt: "Nome de utilizador não encontrado."
             },
-            status: 200,
+            status: 404,
             success: false
         },
         invalidPassword: {
@@ -33,7 +33,7 @@ module.exports = {
             message: {
                 pt: "Palavra-passe inválida."
             },
-            status: 200,
+            status: 401,
             success: false
         },
         loginSuccess(jwt, user) {

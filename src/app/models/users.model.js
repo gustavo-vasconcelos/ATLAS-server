@@ -1,6 +1,6 @@
 const mongoose = require("../../database/connection")
 const ObjectId = mongoose.Schema.Types.ObjectId
-const bcrypt = require("bcrypt-nodejs")
+const bcrypt = require("bcrypt")
 
 const UserSchema = new mongoose.Schema({
     profileId: {
