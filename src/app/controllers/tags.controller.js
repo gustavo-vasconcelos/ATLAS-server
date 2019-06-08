@@ -1,5 +1,6 @@
 const Tag = require("../models/tags.model")
 const utils = require("../utils")
+const messages = require("../jsonmessages/messages")
 
 async function add(req, res) {
     try {
@@ -12,9 +13,10 @@ async function add(req, res) {
 
 async function get(req, res) {
     try {
-        return res.send(await Tag.find().sort({ name: 1 }))
+        const tags = await Tag.find().select("-__v").sort({ name: 1 })
+        return res.status(messages.success().status).send(messages.success("getTags", { tags }))
     } catch (err) {
-        return res.status(400).send({ error: "Could not get tags. " + err })
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 

@@ -1,4 +1,5 @@
 const Course = require("../models/courses.model")
+const messages = require("../jsonmessages/messages")
 
 async function add(req, res) {
     try {
@@ -11,9 +12,10 @@ async function add(req, res) {
 
 async function get(req, res) {
     try {
-        return res.send(await Course.find())
+        const courses = await Course.find().sort({ name: 1 }).lean()
+        return res.status(messages.success().status).send(messages.success("getCourses", { courses }))
     } catch (err) {
-        return res.status(400).send({ error: "Could not get courses. " + err })
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 

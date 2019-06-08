@@ -1,6 +1,7 @@
 const User = require("../models/users.model")
 const Tag = require("../models/tags.model")
 const Course = require("../models/courses.model")
+const EventCollection = require("../models/events.model")
 const utils = require("../utils")
 const controllers = {
     tags: require("./tags.controller"),
@@ -18,35 +19,6 @@ async function add(req, res) {
 }
 
 async function get(req, res) {
-    const { username } = req.query
-    try {
-        let users
-        if(username) {
-            users = await User.findOne({ username }, "-__v").lean()
-        } else {
-            users = await User.find({}, "-__v").lean()
-        }
-        
-        // if there is only one user there is need to make it an array, so for loop can be used
-        if(users) {
-            if(!users.length) {
-                const temp = users
-                users = []
-                users.push(temp)
-            }
-        } else {
-            // no user found
-            return res.send({})
-        }
-        await util.resolveInterests(users)
-        
-        return users.length === 1 ? res.send(users[0]) : res.send(users)
-    } catch (err) {
-        return res.status(400).send({ error: `Could not get users: ${err}.` })
-    }
-}
-
-async function getToBackoffice(req, res) {
     try {
         const users = await User.find().select("picture firstName lastName username email profileId").lean()
         users.forEach(user => {
@@ -63,10 +35,86 @@ async function getToBackoffice(req, res) {
             }
             user.profileId = undefined
         })
-        res.status(messages.user.getUsers().status).send(messages.user.getUsers(users))
+        res.status(messages.user.getUsers().status).send(messages.user.getUsers(users, "getUsers"))
     } catch(err) {
         console.log(err)
         res.status(messages.db.error.status).send(messages.db.error)
+    }
+}
+
+async function getToProfile(req, res) {
+    const username = req.params.username
+    try {
+        const user = await User.findOne({ username }, "-__v").lean()
+        if(!user) {
+            return res.status(404).send({
+                name: "userNotFound",
+                content: {
+                    user: {}
+                },
+                status: 404,
+                success: false  
+            })
+        }
+        
+        // gets main info
+        const proponents = await User.find({ profileId: { $ne: 1 } }).select("username").lean()
+        const tags = await Tag.find().select("-__v").lean()
+        const courses = await Course.find().select("-__v").lean()
+        
+        // converts ids to info
+        user.interests.tags = controllers.tags.util.getByIdsArray(user.interests.tags, tags)
+        user.interests.courses = controllers.courses.util.getByIdsArray(user.interests.courses, courses)
+        user.interests.proponents = util.getUsernamesByIdsArray(user.interests.proponents, proponents)
+        
+        
+        let createdEvents
+        if(user.profileId > 1) {
+            createdEvents = await EventCollection.find({ authorId: user._id })
+            .select("_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description classroom")
+            .sort({ dateStart: 1, hourStart: 1 }).lean()
+        
+             for(const event of createdEvents) {
+                event.author = util.getUsernameById(event.authorId, proponents)
+                event.authorId = undefined
+                
+                event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
+                
+                event.enrollments = event.enrollments.length
+            }
+        }
+        
+        const enrolledEvents = await EventCollection.find({
+            "enrollments.userId": user._id
+        })
+        .select("_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description classroom")
+        .sort({ dateStart: 1, hourStart: 1 }).lean()
+        
+        for(const event of enrolledEvents) {
+            event.author = util.getUsernameById(event.authorId, proponents)
+            event.authorId = undefined
+            
+            event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
+            
+            event.enrollments = event.enrollments.length
+        }
+        
+        
+        return res.send({
+            name: "getUserByUsername",
+            content: {
+                user,
+                events: {
+                    created: createdEvents,
+                    enrolled: enrolledEvents
+                }
+            },
+            status: 200,
+            success: true
+        })
+    } catch (err) {
+        console.log(err)
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
@@ -156,4 +204,4 @@ const util = {
     }
 }
 
-module.exports = { add, get, getById, edit, remove, util, getToBackoffice }
+module.exports = { add, get, getById, edit, remove, util, getToProfile }

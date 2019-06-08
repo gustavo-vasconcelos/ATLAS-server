@@ -25,13 +25,38 @@ async function getUserByJwt(req, res) {
 async function signUp(req, res) {
     req.body.profileId = 1
     try {
+        req.body.gender = (req.body.gender < 1 || req.body.gender > 2) ? 1 : req.body.gender
+
+        if(!req.body.picture) {
+            req.body.picture = req.body.gender === 1 ? "https://i.imgur.com/uUbH9go.png" : "https://i.imgur.com/moL2juW.png"
+        }
+        
+        let errors = []
+        
+        const sameEmail = await User.findOne({ email: req.body.email })
+        if(sameEmail) {
+            errors.push({
+                type: "email",
+                value: req.body.email
+            })
+        }
+        
+        const sameUsername = await User.findOne({ username: req.body.username })
+        if(sameUsername) {
+            errors.push({
+                type: "username",
+                value: req.body.username
+            })
+        }
+        
+        if(errors.length) {
+            return res.status(messages.user.signUpError().status).send(messages.user.signUpError(errors))
+        }
+        
         const user = await User.create(req.body)
-        return res.send({
-            user,
-            token: generateToken(user.id, user.profileId)
-        })
+        return res.status(messages.user.signUpSuccess.status).send(messages.user.signUpSuccess)
     } catch (err) {
-        return res.status(400).send({ error: "Could not sign up. " + err })
+        return res.status(messages.db.error).send(messages.db.error)
     }
 }
 

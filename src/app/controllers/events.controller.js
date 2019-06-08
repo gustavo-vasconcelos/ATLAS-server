@@ -6,6 +6,7 @@ const User = require("../models/users.model")
 const Tag = require("../models/tags.model")
 const Course = require("../models/courses.model")
 const utils = require("../utils")
+
 const controllers = {
     tags: require("./tags.controller"),
     users: require("./users.controller"),
@@ -290,15 +291,25 @@ async function getOccasions(req, res) {
             .select(util.data.defaultSelection)
             .sort({ dateStart: 1, hourStart: 1 }).lean()
         } else {
-            return res.send({ error: "Could not get events. Select an occasion as query parameter: ['today', 'before', 'after']." })
+            return res.status(400).send({
+                name: "wrongQueryParameters",
+                messages: {
+                    en: "Select one of the following occasions as query parameter: 'today', 'before', 'after'."
+                },
+                content: {
+                    events: []
+                },
+                status: 400,
+                success: false
+            })
         }
-        if(events) {
-            await util.resolveEventInfo(events)
-            return res.send(events)
+        if(!events.length) {
+            res.status(messages.event.notFound.status).send(messages.event.notFound)
         }
-        return res.send()
+        await util.resolveEventInfo(events)
+        return res.status(messages.success().status).send(messages.success("getEventsByOccasion", { events }))
     } catch(err) {
-        return res.status(400).send({error: "Could not get today events: " + err})
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
@@ -511,7 +522,7 @@ async function removeDiscussionAnswer(req, res) {
 
 const util = {
     data: {
-        defaultSelection: "_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description coursesIds classroom"  
+        defaultSelection: "_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description coursesIds classroom"
     },
     async resolveEventInfo(events) {
         const proponents = await User.find({ profileId: { $ne: 1 } }).select("username").lean()

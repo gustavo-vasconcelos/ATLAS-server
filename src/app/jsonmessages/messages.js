@@ -1,7 +1,7 @@
 module.exports = {
     db: {
       error: {
-         description: "dbError",
+         name: "dbError",
         message: {
             pt: "Algo correu mal."
         },
@@ -10,9 +10,17 @@ module.exports = {
       }  
     },
     user: {
-        getUsers(users) {
+        notFound: {
+            name: "usersNotFound",
+            content: {
+                users: []
+            },
+            status: 404,
+            success: false
+        },
+        getUsers(users, name) {
             return {
-                description: "getUsers",
+                name,
                 content: {
                     users
                 },
@@ -21,7 +29,7 @@ module.exports = {
             }
         },
         invalidUsername: {
-            description: "invalidUsername",
+            name: "invalidUsername",
             message: {
                 pt: "Nome de utilizador não encontrado."
             },
@@ -29,7 +37,7 @@ module.exports = {
             success: false
         },
         invalidPassword: {
-            description: "invalidPassword",
+            name: "invalidPassword",
             message: {
                 pt: "Palavra-passe inválida."
             },
@@ -38,7 +46,7 @@ module.exports = {
         },
         loginSuccess(jwt, user) {
             return {
-                description: "valid",
+                name: "valid",
                 message: {
                     pt: "Sessão iniciada."
                 },
@@ -46,11 +54,38 @@ module.exports = {
                 status: 200,
                 success: true
             }
+        },
+        signUpError(errors) {
+            return {
+                name: "signUpError",
+                message: {
+                    pt: "Preencha todos os campos corretamente."
+                },
+                content: { error: errors },
+                status: 400,
+                success: false
+            }
+        },
+        signUpSuccess: {
+            name: "signUpSuccess",
+            message: {
+                pt: "Conta criada com sucesso."
+            },
+            status: 200,
+            success: true
+        },
+        insufficientPermissions: {
+            name: "insufficientPermissions",
+            message: {
+                pt: "Sem permissões."
+            },
+            status: 403,
+            success: false
         }
     },
     event: {
         notFound: {
-            description: "eventNotFound",
+            name: "eventNotFound",
             message: {
                 en: "Event not found.",
                 pt: "Evento não encontrado."
@@ -60,7 +95,7 @@ module.exports = {
         },
         discussion: {
             notFound: {
-                description: "eventDiscussionNotFound",
+                name: "eventDiscussionNotFound",
                 message: {
                     en: "Discussion not found.",
                     pt: "Discussão não encontrada."
@@ -70,9 +105,39 @@ module.exports = {
             }
         }
     },
+    tag: {
+        notFound: {
+            name: "tagsNotFound",
+            message: {
+                en: "Tags not found.",
+                pt: "Nenhuma tag foi encontrada."
+            },
+            status: 404,
+            success: false
+        }
+    },
+    course: {
+        notFound: {
+            name: "coursesNotFound",
+            message: {
+                en: "Courses not found.",
+                pt: "Nenhum curso foi encontrado."
+            },
+            status: 404,
+            success: false
+        }
+    },
+    success(name, content) {
+        return {
+            name,
+            content,
+            status: 200,
+            success: true
+        }
+    },
     token: {
         missing: {
-            description: "missingToken",
+            name: "missingToken",
             message: {
                 pt: "Token necessário."
             },
@@ -80,7 +145,7 @@ module.exports = {
             success: false
         },
         malformated: {
-            description: "malformatedToken",
+            name: "malformatedToken",
             message: {
                 pt: "Token desformatado."
             },
@@ -88,7 +153,7 @@ module.exports = {
             success: false
         },
         invalid: {
-            description: "invalidToken",
+            name: "invalidToken",
             message: {
                 pt: "Token inválido."
             },

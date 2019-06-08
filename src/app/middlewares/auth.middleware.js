@@ -1,6 +1,7 @@
 const jwt = require("jsonwebtoken")
 const config = require("../../config")
 const messages = require("../jsonmessages/messages")
+const User = require("../models/users.model")
 
 module.exports = (req, res, next) => {
     // gets request "authorization" header
@@ -28,10 +29,17 @@ module.exports = (req, res, next) => {
     
     
     // verifies token integrity
-    jwt.verify(token, config.auth.secret, (err, decoded) => {
+    jwt.verify(token, config.auth.secret, async (err, decoded) => {
         if(err) {
             return res.status(messages.token.invalid.status).send(messages.token.invalid)
         }
+        
+        // compares token info with db info
+        const user = await User.findOne({ _id: decoded.id, profileId: decoded.profileId })
+        if(!user) {
+            return res.status(messages.token.invalid.status).send(messages.token.invalid)
+        }
+        
         
         // stores variables into req object
         req.loggedUserId = decoded.id
