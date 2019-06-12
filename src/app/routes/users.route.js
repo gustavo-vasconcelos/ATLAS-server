@@ -9,7 +9,7 @@ router.get("/", auth, adminClearance, controller.get)
 router.get("/profile/:username", controller.getToProfile)
 router.get("/ids/:id", controller.getById)
 router.post("/", auth, adminClearance, controller.add)
-router.put("/:id", auth, adminClearance, controller.edit)
+router.put("/:id", auth, controller.edit)
 router.delete("/:id", auth, adminClearance, controller.remove)
 
 module.exports = app => app.use("/users", router)

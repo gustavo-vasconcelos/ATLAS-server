@@ -25,7 +25,7 @@ async function getUserByJwt(req, res) {
 async function signUp(req, res) {
     req.body.profileId = 1
     try {
-        req.body.gender = (req.body.gender < 1 || req.body.gender > 2) ? 1 : req.body.gender
+        req.body.gender = (req.body.gender < 1 || req.body.gender > 2) ? 1 : Math.floor(req.body.gender)
 
         if(!req.body.picture) {
             req.body.picture = req.body.gender === 1 ? "https://i.imgur.com/uUbH9go.png" : "https://i.imgur.com/moL2juW.png"
@@ -81,6 +81,7 @@ async function signIn(req, res) {
                 messages.user.loginSuccess(
                     generateToken(user._id, user.profileId),
                     { 
+                        _id: user._id,
                         username: user.username,
                         profileId: user.profileId,
                         picture: user.picture

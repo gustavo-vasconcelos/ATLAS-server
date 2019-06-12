@@ -5,7 +5,7 @@ const config = require("../../config")
 const User = require("../models/users.model")
 const Tag = require("../models/tags.model")
 const Course = require("../models/courses.model")
-const utils = require("../utils")
+const utils = require("../utils/utils")
 
 const controllers = {
     tags: require("./tags.controller"),

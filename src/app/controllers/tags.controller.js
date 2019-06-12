@@ -1,13 +1,32 @@
 const Tag = require("../models/tags.model")
-const utils = require("../utils")
+const utils = require("../utils/utils")
 const messages = require("../jsonmessages/messages")
 
 async function add(req, res) {
+    const { name } = req.body
     try {
-        await Tag.create(req.body)
-        return res.send()
+        await Tag.create({ name })
+        return res.send({
+            name: "success",
+            status: 200,
+            success: true
+        })
     } catch (err) {
-        return res.status(400).send({ error: "Could not add tag. " + err })
+        if(err.code === 11000) {
+            return res.status(400).send({
+                name: "tagAlreadyExists",
+                error: {
+                    type: "name",
+                    value: name
+                },
+                message: {
+                    pt: `A tag #${name} já existe.`
+                },
+                status: 400,
+                success: false
+            })
+        }
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 

@@ -2,12 +2,13 @@ const User = require("../models/users.model")
 const Tag = require("../models/tags.model")
 const Course = require("../models/courses.model")
 const EventCollection = require("../models/events.model")
-const utils = require("../utils")
+const utils = require("../utils/utils")
 const controllers = {
     tags: require("./tags.controller"),
     courses: require("./courses.controller")
 }
 const messages = require("../jsonmessages/messages")
+const http = require("axios")
 
 async function add(req, res) {
     try {
@@ -56,7 +57,7 @@ async function getToProfile(req, res) {
                 success: false  
             })
         }
-        
+
         // gets main info
         const proponents = await User.find({ profileId: { $ne: 1 } }).select("username").lean()
         const tags = await Tag.find().select("-__v").lean()
@@ -99,7 +100,6 @@ async function getToProfile(req, res) {
             event.enrollments = event.enrollments.length
         }
         
-        
         return res.send({
             name: "getUserByUsername",
             content: {
@@ -135,16 +135,119 @@ async function getById(req, res) {
 
 async function edit(req, res) {
     const _id = req.params.id
+    let { 
+        firstName,
+        lastName,
+        profileId,
+        username,
+        email,
+        picture,
+        gender
+    } = req.body
     const error = "Could not edit user. "
     try {
-        if (await User.findOne({ _id })) {
-            await User.findByIdAndUpdate(_id, req.body)
-            return res.send()
+        let user = await User.findOne({ _id })
+        if (user) {
+            if(!gender) gender = user.gender
+            gender = (gender < 1 || gender > 2) ? 1 : Math.floor(gender)
+            
+            if(!picture) {
+                picture = gender === 1 ? "https://i.imgur.com/uUbH9go.png" : "https://i.imgur.com/moL2juW.png"
+            }
+            
+            if(req.loggedUserProfile !== "admin") {
+                await User.findOneAndUpdate({ _id }, {
+                    firstName,
+                    lastName,
+                    picture,
+                    gender
+                })
+            } else {
+                if(!profileId) profileId = user.profileId
+                profileId = (profileId < 1 || profileId > 3) ? 1 : Math.floor(profileId)
+                
+                let error = ""
+                let errors = []
+                const sameEmail = await User.findOne({
+                    _id: { $ne: _id },
+                    email
+                })
+                
+                if(sameEmail) {
+                    error += "Email em uso. "
+                    errors.push({
+                        type: "email",
+                        value: email
+                    })
+                }
+                
+                const sameUsername = await User.findOne({
+                    _id: { $ne: _id },
+                    username
+                })
+                
+                if(sameUsername && !sameEmail) {
+                    error += "Nome de utilizador em uso."
+                    errors.push({
+                        type: "username",
+                        value: username
+                    })
+                }
+                
+                
+                if(sameEmail || sameUsername) {
+                    return res.send({
+                        name: "error",
+                        errors,
+                        message: { 
+                            pt: error
+                        },
+                        status: 400,
+                        success: false
+                    })
+                }
+                
+                await User.findOneAndUpdate({ _id }, {
+                    firstName,
+                    lastName,
+                    picture,
+                    gender,
+                    username,
+                    email,
+                    profileId
+                })
+            }
+            
+            const updatedUser = await User.findOne({ _id }).lean()
+            
+            // gets main info
+            const proponents = await User.find({ profileId: { $ne: 1 } }).select("username").lean()
+            const tags = await Tag.find().select("-__v").lean()
+            const courses = await Course.find().select("-__v").lean()
+            
+            // converts ids to info
+            updatedUser.interests.tags = controllers.tags.util.getByIdsArray(updatedUser.interests.tags, tags)
+            updatedUser.interests.courses = controllers.courses.util.getByIdsArray(updatedUser.interests.courses, courses)
+            updatedUser.interests.proponents = util.getUsernamesByIdsArray(updatedUser.interests.proponents, proponents)
+            
+            return res.send({
+                name: "userEdited",
+                content: {
+                    user: updatedUser
+                },
+                status: 200,
+                success: true
+            })
         } else {
-            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+            return res.status(404).send({
+                name: "userNotFound",
+                status: 404,
+                success: false
+            })
         }
     } catch (err) {
-        return res.status(400).send({ error: error + err })
+        console.log(err)
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
