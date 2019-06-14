@@ -57,6 +57,12 @@ router.delete("/ids/:id/discussions/:discussionId",
     controller.util.middlewares.verifyDiscussionIntegrity,
     controller.removeDiscussionById
 )
+router.post("/ids/:id/discussions/:discussionId/votes",
+    auth,
+    controller.util.middlewares.verifyEventIntegrity,
+    controller.util.middlewares.verifyDiscussionIntegrity,
+    controller.voteDiscussion
+)
 // discussion answers
 router.post("/ids/:id/discussions/:discussionId/answers",
     auth,

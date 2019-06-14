@@ -500,7 +500,7 @@ async function addDiscussion(req, res) {
         
         if(category !== "Dúvida" && category !== "Sugestão") {
             return res.status(400).send({
-                name: "wrongParamater",
+                name: "wrongParameter",
                 error: "Parameter 'category' must be one of the following: ['Dúvida', 'Sugestão']",
                 status: 400,
                 success: false
@@ -541,7 +541,7 @@ async function editDiscussion(req, res) {
         
         if(category !== "Dúvida" && category !== "Sugestão") {
             return res.status(400).send({
-                name: "wrongParamater",
+                name: "wrongParameter",
                 error: "Parameter 'category' must be one of the following: ['Dúvida', 'Sugestão']",
                 status: 400,
                 success: false
@@ -588,6 +588,57 @@ async function removeDiscussionById(req, res) {
     } catch(err) {
         return res.status(messages.db.error.status).send(messages.db.error)
     }
+}
+
+async function voteDiscussion(req, res) {
+    const { type } = req.body
+    try {
+        if(type !== "upvote" && type !== "downvote") {
+            return res.status(400).send({
+                name: "wrongParameter",
+                error: "Parameter 'type' must be one of the following: ['upvote', 'downvote']",
+                status: 400,
+                success: false
+            })
+        }
+        
+        const event = await EventCollection.findOne({ _id: req.event._id })
+        let eventDiscussion
+        event.discussions.forEach(discussion => {
+            if(discussion._id.equals(req.discussion._id)) {
+                eventDiscussion = discussion
+                const index = discussion.usersVoted.indexOf(req.loggedUserId)
+                if(index !== -1) {
+                    return res.status(400).send({
+                        name: "userAlreadyVoted",
+                        message: {
+                            pt: "Já votou nesta discussão."  
+                        },
+                        status: 400,
+                        success: false
+                    })
+                }
+                if(type === "upvote") {
+                    discussion.upvotes++   
+                } else {
+                    discussion.downvotes++
+                }
+                discussion.usersVoted.push(req.loggedUserId)
+            }
+        })
+        await event.save()
+        return res.send(messages.success("userVoted", {
+            discussion: {
+                upvotes: eventDiscussion.upvotes,
+                downvotes: eventDiscussion.downvotes,
+                usersVoted: eventDiscussion.usersVoted
+            }
+        }))
+    } catch(err) {
+        console.log(err)
+        return res.status(messages.db.error.status).send(messages.db.error)
+    }
+    
 }
 
 async function addDiscussionAnswer(req, res) {
@@ -676,6 +727,7 @@ module.exports = {
     addDiscussion,
     editDiscussion,
     removeDiscussionById,
+    voteDiscussion,
     addDiscussionAnswer,
     removeDiscussionAnswer
 }

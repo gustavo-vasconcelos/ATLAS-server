@@ -293,21 +293,21 @@ async function remove(req, res) {
                 }
             ]
         }).select("enrollments discussions")
-        
+
         for(const event of events) {
-            event.enrollments.forEach(enrollment => {
+            event.enrollments.forEach((enrollment, index) => {
                 if(enrollment.userId.equals(user._id)) {
-                    enrollment = undefined
+                    event.enrollments.splice(index, 1)
                 }
             })
 
-            event.discussions.forEach(discussion => {
+            event.discussions.forEach((discussion, index) => {
                 if(discussion.authorId.equals(_id)) {
-                    discussion = undefined
+                    event.discussions.splice(index, 1)
                 } else {
-                    discussion.answers.forEach(answer => {
+                    discussion.answers.forEach((answer, answerIndex) => {
                         if(answer.authorId.equals(_id)) {
-                            answer = undefined
+                            discussion.answers.splice(answerIndex, 1)
                         }
                     })
                 }
