@@ -64,128 +64,101 @@ async function get(req, res) {
 }
 
 async function getById(req, res) {
-    const _id = req.params.id
-    const error = "Could not get event. "
+    const { event } = req
     try {
-        const response = await EventCollection.find({ _id })
-        .select("-__v")
+        // gets related events (with same tags or courses)
+        const related = await EventCollection.find().and([
+            {
+                $or: [
+                    {
+                        tags: {
+                            $in: event.tags
+                        },
+                    },
+                    {
+                        coursesIds: {
+                            $in: event.coursesIds
+                        }
+                    }
+                ]
+            },
+            {
+                _id: {
+                    $ne: event._id
+                }
+            }
+        ])
+        .select("_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description classroom")
         .sort({ dateStart: 1, hourStart: 1 })
         .lean()
-        if (response) {
-            await util.resolveEventInfo(response)
-            return res.send(response)
-        } else {
-            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
-        }
+        
+        // randomly sorts related events
+        related.sort((a, b) => {
+            return 0.5 - Math.random()
+        })
+        
+        if(related.length > 4) related.length = 4
+        
+        // sorts by date again
+        related.sort((a, b) => {
+            if(a.dateStart > b.dateStart) {
+                return -1
+            } else if(a.dateStart < b.dateStart) {
+                return 1
+            }
+            return 0
+        })
+        
+        // resolves info (tags, courses, author username)
+        const users = await User.find().select("username picture").lean()
+        const tags = await Tag.find().select("-__v").lean()
+        const courses = await Course.find().select("-__v").lean()
+        
+        // resolves event info
+        event.author = controllers.users.util.getUsernameById(event.authorId, users)
+        event.author.picture = undefined
+        event.authorId = undefined
+        
+        event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
+        
+        event.courses = controllers.courses.util.getByIdsArray(event.coursesIds, courses)
+        event.coursesIds = undefined
+        
+        let enrollments = []
+        event.enrollments.forEach(enrollment => {
+            enrollment.user = controllers.users.util.getUsernameById(enrollment.userId, users)
+            enrollment.userId = undefined
+        })
+        
+        event.discussions.forEach(discussion => {
+            discussion.answers = discussion.answers.length
+            discussion.content = undefined
+            
+            discussion.author = controllers.users.util.getUsernameById(discussion.authorId, users)
+            discussion.authorId = undefined
+            
+            discussion.usersVoted.forEach(userVoted => {
+                userVoted = controllers.users.util.getUsernameById(userVoted, users)
+            })
+            
+            
+        })
+        
+        // resolves related events info
+        related.forEach(relatedEvent => {
+            relatedEvent.author = controllers.users.util.getUsernameById(relatedEvent.authorId, users)
+            relatedEvent.author.picture = undefined
+            relatedEvent.authorId = undefined
+            
+            relatedEvent.tags = controllers.tags.util.getByIdsArray(relatedEvent.tags, tags)
+        })
+        
+        return res.send(messages.success("getEventById", {
+            event: event,
+            related
+        }))
     } catch (err) {
-        return res.status(400).send({ error: error + err })
-    }
-}
-
-async function getByIdAndRelated(req, res) {
-    const _id = req.params.id
-    const error = "Could not get event. "
-    try {
-        const event = await EventCollection.findOne({ _id })
-        .select("-__v")
-        .sort({ dateStart: 1, hourStart: 1 }).lean()
-        if (event) {
-            // get related events (with same tags or courses)
-            const related = await EventCollection.find().and([
-                {
-                    $or: [
-                        {
-                            tags: {
-                                $in: event.tags
-                            },
-                        },
-                        {
-                            coursesIds: {
-                                $in: event.coursesIds
-                            }
-                        }
-                    ]
-                },
-                {
-                    _id: {
-                        $ne: event._id
-                    }
-                }
-            ])
-            .select("_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description classroom")
-            .sort({ dateStart: 1, hourStart: 1 })
-            .lean()
-            
-            // randomly sorts related events
-            related.sort((a, b) => {
-                return 0.5 - Math.random()
-            })
-            
-            if(related.length > 4) related.length = 4
-            
-            // sorts by date again
-            related.sort((a, b) => {
-                if(a.dateStart > b.dateStart) {
-                    return -1
-                } else if(a.dateStart < b.dateStart) {
-                    return 1
-                }
-                return 0
-            })
-            
-            // resolves info (tags, courses, author username)
-            const users = await User.find().select("username picture").lean()
-            const tags = await Tag.find().select("-__v").lean()
-            const courses = await Course.find().select("-__v").lean()
-            
-            // resolves event info
-            event.author = controllers.users.util.getUsernameById(event.authorId, users)
-            event.author.picture = undefined
-            event.authorId = undefined
-            
-            event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
-            
-            event.courses = controllers.courses.util.getByIdsArray(event.coursesIds, courses)
-            event.coursesIds = undefined
-            
-            let enrollments = []
-            event.enrollments.forEach(enrollment => {
-                enrollment.user = controllers.users.util.getUsernameById(enrollment.userId, users)
-                enrollment.userId = undefined
-            })
-            
-            event.discussions.forEach(discussion => {
-                discussion.answers = discussion.answers.length
-                discussion.content = undefined
-                
-                discussion.author = controllers.users.util.getUsernameById(discussion.authorId, users)
-                discussion.authorId = undefined
-                
-                discussion.usersVoted.forEach(userVoted => {
-                    userVoted = controllers.users.util.getUsernameById(userVoted, users)
-                })
-                
-                
-            })
-            
-            // resolves related events info
-            related.forEach(relatedEvent => {
-                relatedEvent.author = controllers.users.util.getUsernameById(relatedEvent.authorId, users)
-                relatedEvent.author.picture = undefined
-                relatedEvent.authorId = undefined
-                
-                relatedEvent.tags = controllers.tags.util.getByIdsArray(relatedEvent.tags, tags)
-            })
-            
-            return res.send({
-                event: event,
-                related
-            })
-        } else {
-            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
-        }
-    } catch (err) {
-        return res.status(400).send({ error: error + err })
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
@@ -261,7 +234,7 @@ async function getByDate(req, res) {
 }
 
 async function getOccasions(req, res) {
-    const occasion = req.query.occasion
+    const occasion = req.params.occasion
     
     try {
         let events = null
@@ -350,156 +323,271 @@ async function getByAuthorId(req, res) {
         const events = await EventCollection.find({ authorId })
         .select(util.data.defaultSelection)
         .sort({ dateStart: 1, hourStart: 1 }).lean()
+        
+        if(!events.length) {
+            return res.status(messages.event.notFound.status).send(messages.event.notFound)
+        }
 
         await util.resolveEventInfo(events)
         
-        return res.send(events)
+        return res.status(messages.success().status).send(messages.success("getEventsByAuthorId", { events }))
     } catch (err) {
-        return res.status(400).send({ error: `Could not get events created by '${authorId}': ${err}` })
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
    
 }
 
-async function getEnrolledByUserId(req, res) {
-    const userId = req.params.id
-    try {
-        const events = await EventCollection.find({
-            "enrollments.userId": userId
-        })
-        .select(util.data.defaultSelection)
-        .sort({ dateStart: 1, hourStart: 1 }).lean()
-
-        await util.resolveEventInfo(events)
-        
-        return res.send(events)
-    } catch(err) {
-        return res.status(400).send({ error: `Could not get enrolled events: ${err}` })
-    }
-}
-
 async function addEnrollment(req, res) {
-    const _id = req.params.id
-    const { userId, paid } = req.body
-    
+    const userId = req.loggedUserId
     try {
-        const event = await EventCollection.findOne({ _id })
-        if(!event) {
-            return res.status(400).send({ error: "Event does not exist." })
-        }
-        
-        // verifies user
-        const user = await User.findOne({ _id: userId })
-        if(!user) {
-            return res.status(400).send({ error: "User does not exist." })
+        const event = await EventCollection.findOne({ _id: req.event._id })
+        if(req.loggedUserProfile === "admin") {
+            return res.status(401).send({
+                name: "cannotEnroll",
+                message: {
+                    en: "Cannot enroll to event as admin.",
+                },
+                status: 401,
+                success: false
+            })
         }
         
         const alreadyEnrolled = event.enrollments.find(enrollment => enrollment.userId.equals(userId))
         if(alreadyEnrolled) {
-            return res.status(400).send({ error: "User already enrolled." })
+            return res.status(400).send({
+                name: "alreadyEnrolled",
+                message: {
+                    en: "User already enrolled to event."
+                },
+                status: 400,
+                success: false
+            })
         }
         
-        event.enrollments.push({ userId, paid })
+        event.enrollments.push({
+            userId,
+            paid: false
+        })
         await event.save()
         
-        return res.send()
+        const messagePt = event.paid ?
+            `Dirija-se junto ao proponente de evento para efetuar o pagamento da inscrição (${event.paymentPrice} €).` :
+            `A sua inscrição no evento ${event.name} efetuada com sucesso.`
+        return res.send({
+            name: "userEnrolled",
+            message: {
+                pt: messagePt,
+            },
+            content: {
+                enrollment: event.enrollments[event.enrollments.length - 1]
+            },
+            status: 200,
+            success: true
+        })
     } catch(err) {
-        return res.status(400).send({ error: "Could not add enrollment: " + err })
+        console.log(err)
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
 async function removeEnrollment(req, res) {
-    const { id: _id, userId } = req.params
-    
+    const userId =  req.loggedUserId
     try {
-        const event = await EventCollection.findOne({ _id })
-        if(!event) {
-            return res.status(400).send({ error: "Event does not exist." })
-        }
-        
-        // verifies user
-        const user = await User.findOne({ _id: userId })
-        if(!user) {
-            return res.status(400).send({ error: "User does not exist." })
-        }
+        const event = await EventCollection.findOne({ _id: req.event._id })
         
         const enrolledEvent = event.enrollments.findIndex(enrollment => enrollment.userId.equals(userId))
         if(enrolledEvent === -1) {
-            return res.status(400).send({ error: "User is not enrolled." })
+            return res.status(400).send({
+                name: "notEnrolled",
+                message: {
+                    en: "User is not enrolled.",
+                },
+                status: 400,
+                success: false
+            })
         }
         event.enrollments.splice(enrolledEvent, 1)
         await event.save()
-        return res.send()
+        return res.send({
+            name: "removedEnrollment",
+            status: 200,
+            success: true
+        })
+    } catch(err) {
+        console.log(err)
+        return res.status(messages.db.error.status).send(messages.db.error)
+    }
+}
+
+async function removeEnrollmentByUserId(req, res) {
+    const { event } = req
+    const { userId } = req.params
+    try {
+        // verifies user
+        const user = await User.findOne({ _id: userId })
+        if(!user) {
+            return res.status(400).send({
+                name: "userNotFound",
+                status: 404,
+                success: false
+            })
+        }     
+        
+        const enrolledEvent = event.enrollments.findIndex(enrollment => enrollment.userId.equals(userId))
+        if(enrolledEvent === -1) {
+            return res.status(400).send({
+                name: "userNotFound",
+                message: {
+                    en: "User is not enrolled.",
+                },
+                status: 400,
+                success: false
+            })
+        }
+        event.enrollments.splice(enrolledEvent, 1)
+        await event.save()
+        return res.send({
+            name: "userNotFound",
+            status: 200,
+            success: true
+        })
     } catch(err) {
         return res.status(400).send({ error: "Could not remove enrollment: " + err })
     }
 }
 
 async function getDiscussionById(req, res) {
-    const { id: _id, discussionId } = req.params
+    const { event, discussion } = req
 
     try {
-        const event = await EventCollection.findOne({ _id }).lean()
-        if(!event) {
-            return res.send({ error: "Event not found." })
-        }
-        
-        let eventDiscussion
-        event.discussions.forEach(discussion => {
-            if(discussion._id.equals(discussionId)) {
-                eventDiscussion = discussion
-            }
-        })
-        
         const users = await User.find().select("username picture profileId").lean()
         // resolves author info
-        eventDiscussion.author = controllers.users.util.getUsernameById(eventDiscussion.authorId, users)
-        eventDiscussion.authorId = undefined
+        discussion.author = controllers.users.util.getUsernameById(discussion.authorId, users)
+        discussion.authorId = undefined
         
         // resolves answers authors info
-        eventDiscussion.answers.forEach(answer => {
+        discussion.answers.forEach(answer => {
             answer.author = controllers.users.util.getUsernameById(answer.authorId, users)
             answer.authorId = undefined
         })
-        
 
         return res.send({
-            event: {
-                _id: event._id,
-                category: event.category,
-                name: event.name
+            name: "getEventDiscussion",
+            content: {
+                event: {
+                    _id: event._id,
+                    category: event.category,
+                    name: event.name,
+                    author: {
+                        _id: event.authorId,
+                        username: users.find(user => user._id.equals(event.authorId)).username
+                    }
+                },
+                discussion
             },
-            discussion: eventDiscussion
+            status: 200,
+            success: true
         })
     } catch(err) {
-        return res.status(400).send({ error: "Could not find discussion. " + err })
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
 async function addDiscussion(req, res) {
-    const _id = req.params.id
-    const { authorId, category, title, content } = req.body
+    const { category, title, content } = req.body
     try {
-        const event = await EventCollection.findOne({ _id })
-        if(!event) {
-            return res.status(400).send({ error: "Event does not exist." })
+        const event = await EventCollection.findOne({ _id: req.event._id })
+        
+        if(category !== "Dúvida" && category !== "Sugestão") {
+            return res.status(400).send({
+                name: "wrongParamater",
+                error: "Parameter 'category' must be one of the following: ['Dúvida', 'Sugestão']",
+                status: 400,
+                success: false
+            })
         }
         
-        // verifies user
-        const user = User.findOne({ _id: authorId }).lean()
-        if(!user) {
-            return res.status(400).send({ error: "User does not exist." })
-        }
-        
-        event.discussions.push({ authorId, category, title, content, upvotes: 0, downvotes: 0 })
+        event.discussions.push({
+            authorId: req.loggedUserId,
+            category,
+            title,
+            content,
+            upvotes: 0,
+            downvotes: 0
+        })
         await event.save()
-        return res.send()
+        return res.send(messages.success("addedDiscussion", { discussion: event.discussions[event.discussions.length - 1] }))
     } catch(err) {
-        return res.status(400).send({ error: "Could not add discussion: " + err })
+        console.log(err)
+        return res.status(messages.db.error.status).send(messages.db.error)
+    }
+}
+
+async function editDiscussion(req, res) {
+    const { title, category, content } = req.body
+    try {
+        if(
+            (req.loggedUserProfile === "student" &&
+            !req.discussion.authorId.equals(req.loggedUserId)) ||
+            (req.loggedUserProfile === "proponent" &&
+            !req.event.authorId.equals(req.loggedUserId))
+        ) {
+            return res.status(401).send({
+                name: "insufficientPermissions",
+                status: 401,
+                success: false
+            })
+        }
+        
+        if(category !== "Dúvida" && category !== "Sugestão") {
+            return res.status(400).send({
+                name: "wrongParamater",
+                error: "Parameter 'category' must be one of the following: ['Dúvida', 'Sugestão']",
+                status: 400,
+                success: false
+            })
+        }
+        
+        const event = await EventCollection.findOne({ _id: req.event._id })
+        let discussion
+        event.discussions.forEach(eventDiscussion => {
+            if(eventDiscussion._id.equals(req.discussion._id)) {
+                eventDiscussion.title = title
+                eventDiscussion.category = category
+                eventDiscussion.content = content
+            }
+            discussion = eventDiscussion
+        })
+        await event.save()
+        return res.send({
+            name: "editedDiscussion",
+            content: { discussion },
+            status: 200,
+            success: true
+        })
+    } catch(err) {
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
 async function removeDiscussionById(req, res) {
-    
+    const { discussion } = req
+    try {
+        const event = await EventCollection.findOne({"discussions._id": discussion._id})
+        if(req.loggedUserProfile !== "admin" && !event.authorId.equals(req.loggedUserId)) {
+            return res.status(401).send({
+                name: "insufficientPermissions",
+                status: 401,
+                success: false
+            })
+        }
+        
+        
+        console.log(event.discussions.find(eventDiscussion => eventDiscussion._id.equals(discussion._id)))
+        res.send()
+    } catch(err) {
+        return res.status(messages.db.error.status).send(messages.db.error)
+    }
 }
 
 async function addDiscussionAnswer(req, res) {
@@ -512,7 +600,7 @@ async function addDiscussionAnswer(req, res) {
         await event.save()
         return res.send()
     } catch(err) {
-        return res.status(400).send({ error: err.message })
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
@@ -540,9 +628,12 @@ const util = {
         }
     },
     middlewares: {
-        async verifiesEventIntegrity(req, res, next) {
+        async verifyEventIntegrity(req, res, next) {
             try {
                 const event = await EventCollection.findOne({ _id: req.params.id })
+                .select("-__v")
+                .sort({ dateStart: 1, hourStart: 1 })
+                .lean()
                 if(!event) {
                     return res.status(messages.event.notFound.status).send(messages.event.notFound)
                 }
@@ -552,7 +643,7 @@ const util = {
                 return res.status(messages.db.error.status).send(messages.db.error)
             }
         },
-        async verifiesDiscussionIntegrity(req, res, next) {
+        async verifyDiscussionIntegrity(req, res, next) {
             try {
                 const event = req.event
                 const discussion = event.discussions.find(eventDiscussion => eventDiscussion._id.equals(req.params.discussionId))
@@ -578,12 +669,12 @@ module.exports = {
     edit,
     remove,
     getByAuthorId,
-    getEnrolledByUserId,
-    getByIdAndRelated,
     addEnrollment,
     removeEnrollment,
+    removeEnrollmentByUserId,
     getDiscussionById,
     addDiscussion,
+    editDiscussion,
     removeDiscussionById,
     addDiscussionAnswer,
     removeDiscussionAnswer

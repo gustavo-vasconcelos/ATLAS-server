@@ -253,16 +253,79 @@ async function edit(req, res) {
 
 async function remove(req, res) {
     const _id = req.params.id
-    const error = "Could not remove user. "
     try {
-        if (await User.findOne({ _id })) {
-            await User.findByIdAndDelete(_id)
-            return res.send()
-        } else {
-            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+        const user = await User.findOne({ _id })
+        
+        if(!user) {
+            return res.status(messages.user.notFound.status).send(messages.user.notFound)
+        } else if(user._id.equals(req.loggedUserId)){
+            return res.status(400).send({
+                name: "cannotRemoveSelf",
+                message: {
+                    en: "Cannot remove yourself.",
+                },
+                status: 400,
+                success: false
+            })
         }
+        
+        const createdEvents = await EventCollection.find({ "authorId": _id })
+        if(createdEvents.length) {
+            return res.status(400).send({
+                name: "cannotRemoveUser",
+                message: {
+                    pt: `O utilizador @${user.username} criou ${createdEvents.length} eventos: ${createdEvents.map(createdEvent => createdEvent.name).join(", ")}. Remova os eventos em questão para continuar.`
+                }
+            })
+        }
+        
+        // removes enrollments, created discussions and discussion answers
+        const events = await EventCollection.find({
+            $or: [
+                {
+                    "enrollments.userId": _id
+                },
+                {
+                    "discussions.authorId": _id
+                },
+                {
+                    "discussions.answers.authorId": _id
+                }
+            ]
+        }).select("enrollments discussions")
+        
+        for(const event of events) {
+            event.enrollments.forEach(enrollment => {
+                if(enrollment.userId.equals(user._id)) {
+                    enrollment = undefined
+                }
+            })
+
+            event.discussions.forEach(discussion => {
+                if(discussion.authorId.equals(_id)) {
+                    discussion = undefined
+                } else {
+                    discussion.answers.forEach(answer => {
+                        if(answer.authorId.equals(_id)) {
+                            answer = undefined
+                        }
+                    })
+                }
+            })
+            await event.save()
+        }
+        //await events.save()
+        
+        // when everything is removed, removes user
+        //await user.remove()
+        res.send({
+            name: "userRemoved",
+            status: 200,
+            success: true
+        })
     } catch (err) {
-        return res.status(400).send({ error: error + err })
+        console.log(err)
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 

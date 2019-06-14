@@ -7,8 +7,8 @@ const adminClearance = require("../middlewares/adminClearance.middleware")
 
 router.get("/", controller.get)
 router.get("/:id", controller.getById)
-router.post("/", /*auth, adminClearance, */controller.add)
-router.put("/:id", /*auth, adminClearance, */controller.edit)
-router.delete("/:id", /*auth, adminClearance, */controller.remove)
+router.post("/", auth, adminClearance, controller.add)
+router.put("/:id", auth, adminClearance, controller.edit)
+router.delete("/:id", auth, adminClearance, controller.remove)
 
 module.exports = app => app.use("/medals", router)
