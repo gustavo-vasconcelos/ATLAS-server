@@ -1,13 +1,16 @@
 const Tag = require("../models/tags.model")
 const utils = require("../utils/utils")
 const messages = require("../jsonmessages/messages")
+const User = require("../models/users.model.js")
+const EventCollection = require("../models/events.model.js")
 
 async function add(req, res) {
     const { name } = req.body
     try {
-        await Tag.create({ name })
+        const tag = await Tag.create({ name })
         return res.send({
-            name: "success",
+            name: "addedTag",
+            content: { tag },
             status: 200,
             success: true
         })
@@ -56,31 +59,89 @@ async function getById(req, res) {
 
 async function edit(req, res) {
     const _id = req.params.id
-    const error = "Could not edit tag. "
     try {
-        if (await Tag.findOne({ _id })) {
-            await Tag.findByIdAndUpdate(_id, req.body)
-            return res.send()
-        } else {
-            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+        const tag = await Tag.findOne({ _id })
+        if (!tag) {
+            return res.status(404).send({
+                name: "tagNotFound",
+                status: 404,
+                success: false
+            })
         }
+        
+        const alreadyExists = await Tag.findOne({ name: req.body.name })
+        if(alreadyExists) {
+            return res.status(400).send({
+                name: "tagAlreadyExists",
+                error: {
+                    type: "name",
+                    value: req.body.name
+                },
+                message: {
+                    pt: `A tag #${req.body.name} já existe.`
+                },
+                status: 400,
+                success: false
+            })
+        }
+        await Tag.findByIdAndUpdate(_id, req.body)
+        return res.send({
+            name: "editedTag",
+            content: { tag },
+            status: 200,
+            success: true
+        })
     } catch (err) {
-        return res.status(400).send({ error: error + err })
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
 async function remove(req, res) {
     const _id = req.params.id
-    const error = "Could not remove tag. "
     try {
-        if (await Tag.findOne({ _id })) {
-            await Tag.findByIdAndDelete(_id)
-            return res.send()
-        } else {
-            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+        const tag = await Tag.findOne({ _id })
+        if (!tag) {
+            return res.status(404).send({
+                name: "tagNotFound",
+                status: 404,
+                success: false
+            })
         }
+        const users = await User.find()
+        for(const user of users) {
+            user.interests.tags.forEach((interestedTag, index) => {
+                if(interestedTag.equals(_id)) {
+                    return res.status(400).send({
+                        name: "tagUsed",
+                        message: {
+                            pt: "Tag em uso."
+                        },
+                        status: 400,
+                        success: false
+                    })
+                }
+            })
+        }
+        
+        const events = await EventCollection.find()
+        for(const event of events) {
+            event.tags.forEach((eventTag, index) => {
+                if(eventTag.equals(_id)) {
+                    event.tags.splice(index, 1)
+                }
+            })
+            await event.save()
+        }
+        
+        await Tag.findByIdAndDelete(_id)
+        return res.send({
+            name: "removedTag",
+            status: 200,
+            success: true
+        })
     } catch (err) {
-        return res.status(400).send({ error: error + err })
+        console.log(err)
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 

@@ -5,22 +5,40 @@ const auth = require("../middlewares/auth.middleware")
 const proponentClearance = require("../middlewares/proponentClearance.middleware")
 const adminClearance = require("../middlewares/adminClearance.middleware")
 
-router.get("/", auth, adminClearance, controller.get)
+router.get("/", auth, proponentClearance, controller.get)
 router.get("/occasions/:occasion", controller.getOccasions)
 router.get("/dates/:date", controller.getByDate)
 router.get("/ids/:id",
     controller.util.middlewares.verifyEventIntegrity,
     controller.getById
 )
+router.get("/suggested/:userId", controller.getSuggested)
+router.get("/top", controller.getTopEvents)
 router.get("/authors/:id", auth, proponentClearance, controller.getByAuthorId)
 router.post("/", auth, proponentClearance, controller.add)
-router.put("/:id", auth, proponentClearance, controller.edit)
-router.delete("/:id", auth, proponentClearance, controller.remove)
+router.put("/:id",
+    auth,
+    proponentClearance,
+    controller.util.middlewares.verifyEventIntegrity,
+    controller.edit
+)
+router.delete("/:id",
+    auth,
+    proponentClearance,
+    controller.util.middlewares.verifyEventIntegrity,
+    controller.remove
+)
 // enrollments
 router.post("/ids/:id/enrollments",
     auth,
     controller.util.middlewares.verifyEventIntegrity,
     controller.addEnrollment
+)
+router.post("/ids/:id/enrollments/:userId/payments",
+    auth,
+    proponentClearance,
+    controller.util.middlewares.verifyEventIntegrity,
+    controller.changePayment
 )
 router.delete("/ids/:id/enrollments",
     auth,
@@ -52,7 +70,6 @@ router.put("/ids/:id/discussions/:discussionId",
 )
 router.delete("/ids/:id/discussions/:discussionId",
     auth,
-    proponentClearance,
     controller.util.middlewares.verifyEventIntegrity,
     controller.util.middlewares.verifyDiscussionIntegrity,
     controller.removeDiscussionById
@@ -70,6 +87,12 @@ router.post("/ids/:id/discussions/:discussionId/answers",
     controller.util.middlewares.verifyDiscussionIntegrity,
     controller.addDiscussionAnswer
 )
-router.delete("/ids/:id/discussions/:discussionId/answers", auth, controller.removeDiscussionAnswer)
+router.delete("/ids/:id/discussions/:discussionId/answers/:answerId",
+    auth,
+    controller.util.middlewares.verifyEventIntegrity,
+    controller.util.middlewares.verifyDiscussionIntegrity,
+    controller.util.middlewares.verifyAnswerIntegrity,
+    controller.removeDiscussionAnswer
+)
 
 module.exports = app => app.use("/events", router)

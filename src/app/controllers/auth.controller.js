@@ -10,7 +10,7 @@ function generateToken(userId, userProfileId) {
          id: userId,
          profileId: userProfileId
      }, config.auth.secret, {
-        expiresIn: 3600
+        expiresIn: 3600 * 24 * 7
     })
 }
 
@@ -153,9 +153,4 @@ async function resetPassword(req, res) {
     }
 }
 
-async function checkPermissions(req, res) {
-    
-}
-
-
-module.exports = { getUserByJwt, signUp, signIn, forgotPassword, resetPassword, checkPermissions }
+module.exports = { getUserByJwt, signUp, signIn, forgotPassword, resetPassword }

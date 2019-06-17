@@ -15,43 +15,127 @@ const controllers = {
 const messages = require("../jsonmessages/messages")
 
 async function add(req, res) {
-    const { tags, enrollments } = req.body
-    let repeatedTags = false, repeatedEnrollments = []
+    let {
+        name,
+        category,
+        tags,
+        description,
+        hourStart,
+        hourEnd,
+        dateStart,
+        duration,
+        paid,
+        paymentPrice,
+        classroom,
+        coursesIds,
+        thumbnail,
+        poster,
+        orientation,
+        gallery
+    } = req.body
+    
     try {
-        
         tags.forEach((tag, index) => {
             const tagIndex = tags.indexOf(tag)
             if(tagIndex !== -1 && index !== tagIndex) {
-                repeatedTags = true
+                return res.status(400).send({
+                    name: "repeatedCourse",
+                    status: 400,
+                    success: false
+                })
             }
         })
         
-        enrollments.forEach((enrollment, index) => { 
-            const result = enrollments.find((enroll, enrollIndex) => enroll.userId === enrollment.userId && enrollIndex !== index)
-            if(result) {
-                repeatedEnrollments.push(result)
+        coursesIds.forEach((course, index) => {
+            const courseIndex = coursesIds.indexOf(course)
+            if(courseIndex !== -1 && index !== courseIndex) {
+                return res.status(400).send({
+                    name: "repeatedTag",
+                    status: 400,
+                    success: false
+                })
             }
-
         })
-
-        if(!repeatedTags && !repeatedEnrollments.length) {
-            await EventCollection.create(req.body)
-            return res.send()
-        } else {
-            return res.status(400).send({error: "Could not add event. Duplicated tag id or enrollment id."})
+        
+        let dateEnd = new Date(dateStart)
+        dateEnd.setDate(dateEnd.getDate() + duration - 1)
+        
+        if(!paid) {
+            paymentPrice = 0
         }
         
+        const event = await EventCollection.create({
+            authorId: req.loggedUserId,
+            name,
+            category,
+            tags,
+            description,
+            hourStart,
+            hourEnd,
+            dateStart,
+            dateEnd,
+            durationDays: duration,
+            paid,
+            paymentPrice,
+            classroom,
+            coursesIds,
+            picture: {
+                gallery,
+                thumbnail,
+                poster: {
+                    url: poster,
+                    orientation
+                }
+            }
+        })
+        
+        event.qr = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=http://${config.appUrl}/evento/${event._id}`
+        event.authorId = undefined
+        const user = User.findOne({ _id: req.loggedUserId }).select("username").lean()
+        event.author = {
+            _id: req.loggedUserId,
+            username: user.username
+        }
+        
+        return res.send({
+            name: "addedEvent",
+            content: { event },
+            status: 200,
+            success: true
+        })
     } catch (err) {
-        return res.status(400).send({ error: "Could not add event. " + err })
+        return res.status(messages.db.error).send(messages.db.error)
     }
 }
 
 async function get(req, res) {
     const page = parseInt(req.query.page)
-    
     try {
         if(!page) {
-            res.send(await EventCollection.find().sort({ dateStart: 1, hourStart: 1 }))
+            let events, users
+            if(req.loggedUserProfile === "proponent") {
+                events = await EventCollection.find({ authorId: req.loggedUserId })
+                .select("name")
+                .sort({ dateStart: 1, hourStart: 1 })
+                .lean()
+            } else {
+                events = await EventCollection.find()
+                .select("name authorId")
+                .sort({ dateStart: 1, hourStart: 1 })
+                .lean()
+                
+                users = await User.find({ profileId: { $ne: 1 } }).select("username").lean()
+            }
+            
+            events.forEach(event => {
+                event.qr = `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=http://${config.appUrl}/evento/${event._id}`
+                
+                if(req.loggedUserProfile === "admin") {
+                    event.author = controllers.users.util.getUsernameById(event.authorId, users)
+                    event.authorId = undefined
+                }
+            })
+            res.send(messages.success("getEvents", { events }))
         } else {
             res.send(await EventCollection.find()
             .select(util.data.defaultSelection)
@@ -59,7 +143,7 @@ async function get(req, res) {
         }
         return
     } catch (err) {
-        return res.status(400).send({ error: "Could not get events. " + err })
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
@@ -89,7 +173,7 @@ async function getById(req, res) {
             }
         ])
         .select("_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description classroom")
-        .sort({ dateStart: 1, hourStart: 1 })
+        .sort({ picture: 1 })
         .lean()
         
         // randomly sorts related events
@@ -238,15 +322,15 @@ async function getOccasions(req, res) {
     
     try {
         let events = null
-        if(occasion === "before") {
+        if(occasion === "previous") {
             events = await EventCollection.find({
                 dateStart: {
                     $lt: moment(new Date).toDate()
                 }
             })
             .select(util.data.defaultSelection)
-            .sort({ dateStart: 1, hourStart: 1 }).lean()
-        } else if(occasion === "after") {
+            .sort({ dateStart: -1, hourStart: -1 }).lean()
+        } else if(occasion === "next") {
             events = await EventCollection.find({
                 dateStart: {
                     $gt: moment(new Date).toDate(),
@@ -267,7 +351,7 @@ async function getOccasions(req, res) {
             return res.status(400).send({
                 name: "wrongQueryParameters",
                 messages: {
-                    en: "Select one of the following occasions as query parameter: 'today', 'before', 'after'."
+                    en: "Select one of the following occasions as query parameter: 'today', 'previous', 'next'."
                 },
                 content: {
                     events: []
@@ -277,7 +361,7 @@ async function getOccasions(req, res) {
             })
         }
         if(!events.length) {
-            res.status(messages.event.notFound.status).send(messages.event.notFound)
+            return res.status(messages.success().status).send(messages.success(`getByOccasion(${occasion})`, { events }))
         }
         await util.resolveEventInfo(events)
         return res.status(messages.success().status).send(messages.success("getEventsByOccasion", { events }))
@@ -287,32 +371,114 @@ async function getOccasions(req, res) {
 }
 
 async function edit(req, res) {
-    const _id = req.params.id
-    const error = "Could not edit event. "
+    let {
+        name,
+        category,
+        tags,
+        description,
+        hourStart,
+        hourEnd,
+        dateStart,
+        duration,
+        paid,
+        paymentPrice,
+        classroom,
+        coursesIds,
+        thumbnail,
+        poster,
+        orientation,
+        gallery
+    } = req.body
+    
     try {
-        if (await EventCollection.findOne({ _id })) {
-            await EventCollection.findByIdAndUpdate(_id, req.body)
-            return res.send()
-        } else {
-            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+        if(req.loggedUserProfile === "proponent" && req.event.authorId !== req.loggedUserId) {
+            return res.status(401).send({
+                name: "insufficientPermissions",
+                status: 401,
+                success: false
+            })
         }
+        
+        tags.forEach((tag, index) => {
+            const tagIndex = tags.indexOf(tag)
+            if(tagIndex !== -1 && index !== tagIndex) {
+                return res.status(400).send({
+                    name: "repeatedCourse",
+                    status: 400,
+                    success: false
+                })
+            }
+        })
+        
+        coursesIds.forEach((course, index) => {
+            const courseIndex = coursesIds.indexOf(course)
+            if(courseIndex !== -1 && index !== courseIndex) {
+                return res.status(400).send({
+                    name: "repeatedTag",
+                    status: 400,
+                    success: false
+                })
+            }
+        })
+        
+        let dateEnd = new Date(dateStart)
+        dateEnd.setDate(dateEnd.getDate() + duration - 1)
+        
+        if(!paid) {
+            paymentPrice = 0
+        }
+        
+        const event = await EventCollection.findByIdAndUpdate(req.event._id, {
+            name,
+            category,
+            tags,
+            description,
+            hourStart,
+            hourEnd,
+            dateStart,
+            dateEnd,
+            durationDays: duration,
+            paid,
+            paymentPrice,
+            classroom,
+            coursesIds,
+            picture: {
+                gallery,
+                thumbnail,
+                poster: {
+                    url: poster,
+                    orientation
+                }
+            }
+        })
+        return res.send({
+            name: "editedEvent",
+            content: { event },
+            status: 200,
+            success: true
+        })
     } catch (err) {
-        return res.status(400).send({ error: error + err })
+        return res.status(messages.db.error).send(messages.db.error)
     }
 }
 
 async function remove(req, res) {
-    const _id = req.params.id
-    const error = "Could not remove event. "
     try {
-        if (await EventCollection.findOne({ _id })) {
-            await EventCollection.findByIdAndDelete(_id)
-            return res.send()
-        } else {
-            return res.status(404).send({ error: error + `Cannot find id '${_id}'`})
+        if(req.loggedUserProfile === "proponent" && req.event.authorId !== req.loggedUserId) {
+            return res.status(401).send({
+                name: "insufficientPermissions",
+                status: 401,
+                success: false
+            })
         }
+        await EventCollection.findByIdAndDelete(req.event._id)
+        return res.send({
+            name: "removedEvent",
+            status: 200,
+            success: true
+        })
     } catch (err) {
-        return res.status(400).send({ error: error + err })
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
@@ -420,9 +586,19 @@ async function removeEnrollment(req, res) {
 }
 
 async function removeEnrollmentByUserId(req, res) {
-    const { event } = req
     const { userId } = req.params
     try {
+        if(
+            (req.loggedUserProfile === "proponent" &&
+            !req.event.authorId.equals(req.loggedUserId))
+        ) {
+            return res.status(401).send({
+                name: "insufficientPermissions",
+                status: 401,
+                success: false
+            })
+        }
+        
         // verifies user
         const user = await User.findOne({ _id: userId })
         if(!user) {
@@ -432,6 +608,8 @@ async function removeEnrollmentByUserId(req, res) {
                 success: false
             })
         }     
+        
+        const event = await EventCollection.findOne({ _id: req.event._id })
         
         const enrolledEvent = event.enrollments.findIndex(enrollment => enrollment.userId.equals(userId))
         if(enrolledEvent === -1) {
@@ -447,12 +625,61 @@ async function removeEnrollmentByUserId(req, res) {
         event.enrollments.splice(enrolledEvent, 1)
         await event.save()
         return res.send({
-            name: "userNotFound",
+            name: "enrollmentRemoved",
             status: 200,
             success: true
         })
     } catch(err) {
         return res.status(400).send({ error: "Could not remove enrollment: " + err })
+    }
+}
+
+async function changePayment(req, res) {
+    const { userId } = req.params
+    try {
+        if(
+            (req.loggedUserProfile === "proponent" &&
+            !req.event.authorId.equals(req.loggedUserId))
+        ) {
+            return res.status(401).send({
+                name: "insufficientPermissions",
+                status: 401,
+                success: false
+            })
+        }
+        const event = await EventCollection.findOne({ _id: req.event._id })
+        
+        if(!event.paid) {
+            return res.status(400).send({
+                name: "cannotChangePayment",
+                message: {
+                    en: "This event is not paid."
+                },
+                status: 400,
+                success: false
+            })
+        }
+        
+        const enrollment = event.enrollments.find(e => e.userId.equals(userId))
+        
+        if(!enrollment) {
+            return res.status(400).send({
+                name: "userNotEnrolled",
+                message: {
+                    en:"User is not enrolled on this event."
+                },
+                status: 400,
+                success: false
+            })
+        }
+        
+        enrollment.paid = !enrollment.paid
+        
+        await event.save()
+        res.status(messages.success().status).send(messages.success("paymentChanged", { enrollment }))
+    } catch(err) {
+        console.log(err)
+        return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
@@ -571,10 +798,13 @@ async function editDiscussion(req, res) {
 }
 
 async function removeDiscussionById(req, res) {
-    const { discussion } = req
     try {
-        const event = await EventCollection.findOne({"discussions._id": discussion._id})
-        if(req.loggedUserProfile !== "admin" && !event.authorId.equals(req.loggedUserId)) {
+        if(
+            (req.loggedUserProfile === "student" &&
+            !req.discussion.authorId.equals(req.loggedUserId)) ||
+            (req.loggedUserProfile === "proponent" &&
+            !req.event.authorId.equals(req.loggedUserId))
+        ) {
             return res.status(401).send({
                 name: "insufficientPermissions",
                 status: 401,
@@ -582,9 +812,18 @@ async function removeDiscussionById(req, res) {
             })
         }
         
-        
-        console.log(event.discussions.find(eventDiscussion => eventDiscussion._id.equals(discussion._id)))
-        res.send()
+        const event = await EventCollection.findOne({ _id: req.event._id })
+        event.discussions.forEach((discussion, index) => {
+            if(discussion._id.equals(req.discussion._id)) {
+                event.discussions.splice(index, 1)
+            }
+        })
+        await event.save()
+        return res.send({
+            name: "removedDiscussion",
+            status: 200,
+            success: true
+        })
     } catch(err) {
         return res.status(messages.db.error.status).send(messages.db.error)
     }
@@ -642,21 +881,177 @@ async function voteDiscussion(req, res) {
 }
 
 async function addDiscussionAnswer(req, res) {
-    const { id: _id, discussionId } = req.params
-    const { event, discussion } = req
-    const { authorId, content } = req.body
-    
     try {
-        discussion.answers.push({ authorId, content })
+        const event = await EventCollection.findOne({ _id: req.event._id })
+        let answer
+        event.discussions.forEach(discussion => {
+            if(discussion._id.equals(req.discussion._id)) {
+                discussion.answers.push({
+                    content: req.body.content,
+                    authorId: req.loggedUserId
+                })
+                answer = discussion.answers[discussion.answers.length - 1]
+            }
+        })
         await event.save()
-        return res.send()
+        const { _id, content, createdAt } = answer
+        const user = await User.findOne({ _id: req.loggedUserId })
+        return res.send({
+            name: "addedAnswer",
+            content: {
+                answer: {
+                    _id,
+                    content,
+                    createdAt,
+                    author: {
+                        _id: req.loggedUserId,
+                        profileId: user.profileId,
+                        username: user.username,
+                        picture: user.picture
+                    }
+                }
+            },
+            status: 200,
+            success: true
+        })
     } catch(err) {
+        console.log(err)
         return res.status(messages.db.error.status).send(messages.db.error)
     }
 }
 
 async function removeDiscussionAnswer(req, res) {
-    
+    try {
+        if(
+            (req.loggedUserProfile === "student" &&
+            !req.answer.authorId.equals(req.loggedUserId)) ||
+            (req.loggedUserProfile === "proponent" &&
+            !req.event.authorId.equals(req.loggedUserId)) &&
+            !req.answer.authorId.equals(req.loggedUserId)
+        ) {
+            return res.status(401).send({
+                name: "insufficientPermissions",
+                status: 401,
+                success: false
+            })
+        }
+        const event = await EventCollection.findOne({ _id: req.event._id })
+        const discussion = event.discussions.find(discussion => discussion._id.equals(req.discussion._id))
+        const answerIndex = discussion.answers.findIndex(answer => answer._id.equals(req.answer._id))
+        discussion.answers.splice(answerIndex, 1)
+        event.save()
+        
+        return res.send({
+            name: "removedAnswer",
+            content: {
+                answerId: req.answer._id  
+            },
+            status: 200,
+            success: true
+        })
+    } catch(err) {
+        return res.status(messages.db.error.status).send(messages.db.error)
+    }
+}
+
+async function getSuggested(req, res) {
+    const { userId } = req.params
+    try {
+        const user = await User.findOne({ _id: userId }).lean()
+        if(!user) {
+            return res.status(messages.user.notFound.status).send(messages.user.notFound)
+        }
+        
+        const suggestedEvents = await EventCollection.find({
+            dateStart: {
+                $gte: new Date()
+            }
+        }).and([
+            {
+                $or: [
+                    {
+                        tags: {
+                            $in: user.interests.tags
+                        },
+                    },
+                    {
+                        coursesIds: {
+                            $in: user.interests.courses
+                        }
+                    },
+                    {
+                        authorId: {
+                            $in: user.interests.proponents
+                        }
+                    }
+                ]
+            }
+        ])
+        .select("_id picture.thumbnail tags authorId name category classroom hourStart hourEnd dateStart dateEnd enrollments description classroom")
+        .sort({ dateStart: 1, hourStart: 1 })
+        .lean()
+        
+        // resolves info (tags, courses, author username)
+        const users = await User.find().select("username picture").lean()
+        const tags = await Tag.find().select("-__v").lean()
+        const courses = await Course.find().select("-__v").lean()
+        
+        // resolves related events info
+        suggestedEvents.forEach(suggested => {
+            suggested.author = controllers.users.util.getUsernameById(suggested.authorId, users)
+            suggested.author.picture = undefined
+            suggested.authorId = undefined
+            
+            suggested.tags = controllers.tags.util.getByIdsArray(suggested.tags, tags)
+        })
+        return res.send({
+            name: "getSuggestedEvents",
+            content: {
+                events: suggestedEvents
+            },
+            status: 200,
+            success: true
+        })
+    } catch(err) {
+        return res.status(messages.db.error.status).send(messages.db.error)
+    }
+}
+
+async function getTopEvents(req, res) {
+    try {
+        const events = await EventCollection.find().select(util.data.defaultSelection).sort({ dateStart: -1, hourStart: -1 }).lean()
+        // resolves info (tags, courses, author username)
+        const users = await User.find().select("username picture").lean()
+        const tags = await Tag.find().select("-__v").lean()
+        const courses = await Course.find().select("-__v").lean()
+        
+        events.forEach(event => {
+            event.author = controllers.users.util.getUsernameById(event.authorId, users)
+            event.author.picture = undefined
+            event.authorId = undefined
+            
+            event.tags = controllers.tags.util.getByIdsArray(event.tags, tags)
+            
+            //event.enrollments = event.enrollments.length
+        })
+        
+        events.sort((a, b) => {
+            if(a.enrollments.length < b.enrollments.length) return 1
+            if(a.enrollments.length > b.enrollments.length) return -1
+            return 0
+        })
+        
+        events.length = events.length > 4 ? 4 : events.length
+        
+        return res.send({
+            name: "getTopEvents",
+            content: { events },
+            status: 200,
+            success: true
+        })
+    } catch(err) {
+        return res.status(messages.db.error.status).send(messages.db.error)
+    }
 }
 
 const util = {
@@ -706,6 +1101,19 @@ const util = {
             } catch (err) {
                 return res.status(messages.db.error.status).send(messages.db.error)
             }
+        },
+        async verifyAnswerIntegrity(req, res, next) {
+            try {
+                const discussion = req.discussion
+                const answer = discussion.answers.find(answer => answer._id.equals(req.params.answerId))
+                if(!answer) {
+                    return res.status(messages.event.answer.notFound.status).send(messages.event.answer.notFound)
+                }
+                req.answer = answer
+                return next()
+            } catch (err) {
+                return res.status(messages.db.error.status).send(messages.db.error)
+            }
         }
     }
 }
@@ -723,11 +1131,14 @@ module.exports = {
     addEnrollment,
     removeEnrollment,
     removeEnrollmentByUserId,
+    changePayment,
     getDiscussionById,
     addDiscussion,
     editDiscussion,
     removeDiscussionById,
     voteDiscussion,
     addDiscussionAnswer,
-    removeDiscussionAnswer
+    removeDiscussionAnswer,
+    getSuggested,
+    getTopEvents
 }

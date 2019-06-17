@@ -40,7 +40,6 @@ module.exports = (req, res, next) => {
             return res.status(messages.token.invalid.status).send(messages.token.invalid)
         }
         
-        
         // stores variables into req object
         req.loggedUserId = decoded.id
         switch(decoded.profileId) {

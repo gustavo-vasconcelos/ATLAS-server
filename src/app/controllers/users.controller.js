@@ -12,16 +12,71 @@ const http = require("axios")
 
 async function add(req, res) {
     try {
-        await User.create(req.body)
-        return res.send()
+        req.body.gender = (req.body.gender < 1 || req.body.gender > 2) ? 1 : Math.floor(req.body.gender)
+
+        if(!req.body.picture) {
+            req.body.picture = req.body.gender === 1 ? "https://i.imgur.com/uUbH9go.png" : "https://i.imgur.com/moL2juW.png"
+        }
+        
+        let errors = []
+        
+        const sameEmail = await User.findOne({ email: req.body.email })
+        if(sameEmail) {
+            errors.push({
+                type: "email",
+                value: req.body.email
+            })
+        }
+        
+        const sameUsername = await User.findOne({ username: req.body.username })
+        if(sameUsername) {
+            errors.push({
+                type: "username",
+                value: req.body.username
+            })
+        }
+        
+        if(errors.length) {
+            return res.status(messages.user.signUpError().status).send(messages.user.signUpError(errors))
+        }
+        
+        const user = await User.create(req.body)
+        const { firstName, lastName, username, email, profileId, picture } = user
+        switch(profileId) {
+            case 1: 
+                user.profile = "Aluno"
+                break
+            case 2:
+                user.profile = "Proponente"
+                break
+            case 3:
+                user.profile = "Administrador"
+                break
+        }
+        user.profileId = undefined
+        return res.send({
+            name: "addedUser",
+            content: {
+                user: {
+                    firstName,
+                    lastName,
+                    username,
+                    email,
+                    profileId,
+                    picture
+                }
+            },
+            status: 200,
+            success: true
+        })
     } catch (err) {
-        return res.status(400).send({ error: "Could not add user. " + err })
+        return res.status(messages.db.error).send(messages.db.error)
     }
 }
 
 async function get(req, res) {
     try {
-        const users = await User.find().select("picture firstName lastName username email profileId").lean()
+        const users = await User.find().select("firstName lastName username email profileId").lean()
         users.forEach(user => {
             switch(user.profileId) {
                 case 1: 
@@ -314,16 +369,52 @@ async function remove(req, res) {
             })
             await event.save()
         }
-        //await events.save()
-        
         // when everything is removed, removes user
-        //await user.remove()
+        await user.remove()
         res.send({
             name: "userRemoved",
             status: 200,
             success: true
         })
     } catch (err) {
+        console.log(err)
+        return res.status(messages.db.error.status).send(messages.db.error)
+    }
+}
+
+async function getTop(req, res) {
+    try {
+        const users = await User.find().select("username picture").lean()
+        const events = await EventCollection.find().select("enrollments").lean()
+        let top = []
+        users.forEach(user => {
+            events.forEach(event => {
+                event.enrollments.forEach(enrollment => {
+                    if (user._id.equals(enrollment.userId)) {
+                        if (!top.some(topUser => topUser._id.equals(enrollment.userId))) {
+                            top.push({
+                                _id: user._id,
+                                amount: 1,
+                                picture: user.picture,
+                                username: user.username
+                            })
+                        } else {
+                            top.find(topUser => topUser._id.equals(enrollment.userId)).amount++
+                        }
+                    }
+                })
+            })
+        })
+        
+        return res.send({
+            name: "topUsers",
+            content: {
+                users: top
+            },
+            status: 200,
+            success: true
+        })
+    } catch(err) {
         console.log(err)
         return res.status(messages.db.error.status).send(messages.db.error)
     }
@@ -370,4 +461,4 @@ const util = {
     }
 }
 
-module.exports = { add, get, getById, edit, remove, util, getToProfile }
+module.exports = { add, get, getById, edit, remove, util, getToProfile, getTop }

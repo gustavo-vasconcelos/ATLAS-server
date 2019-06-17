@@ -103,6 +103,17 @@ module.exports = {
                 status: 404,
                 success: false
             }
+        },
+        answer: {
+            notFound: {
+                name: "answerNotFound",
+                message: {
+                    en: "Answer not found.",
+                    pt: "Resposta não encontrada."
+                },
+                status: 404,
+                success: false
+            }
         }
     },
     tag: {

@@ -3,8 +3,13 @@ const messages = require("../jsonmessages/messages")
 
 async function add(req, res) {
     try {
-        await Course.create(req.body)
-        return res.send()
+        const course = await Course.create(req.body)
+        return res.send({
+            name: "addedCourse",
+            content: { course },
+            status: 200,
+            success: true
+        })
     } catch (err) {
         return res.status(400).send({ error: "Could not add course. " + err })
     }
